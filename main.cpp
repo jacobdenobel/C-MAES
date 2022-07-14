@@ -1,24 +1,41 @@
-#include <iostream>
+
 
 #include "c++maes.hpp"
 
-double sphere(const std::vector<double>& x){
+double sphere(const Vector &x)
+{
     double res = 0;
-    for(auto& xi :x)
-        res += xi*xi;
+    for (auto &xi : x)
+        res += xi * xi;
     return res;
 }
-template<typename T>
-std::ostream& operator<<(std::ostream& os, const std::vector<T>& x){
-    for(auto& xi: x)
-        os << xi << ' ';
-    return os;
+
+
+
+std::pair<double, size_t> compute_ert(const std::vector<size_t> &running_times, const size_t budget)
+{
+    size_t successfull_runs = 0, total_rt = 0;
+
+    for (const auto &rt : running_times)
+    {
+        if (rt < budget)
+            successfull_runs++;
+        total_rt += rt;
+    }
+    return {static_cast<double>(total_rt) / successfull_runs, successfull_runs};
 }
 
-int main(){
-    auto sampler = std::make_shared<sampling::Tester>(2);
-    // sampling::Mirrored mirrored(sampler);
-    // sampling::Orthogonal orth(sampler, 2);
-    sampling::Halton h(5);
-    std::cout << h() << std::endl;
+
+
+int main()
+{
+    const int d = 5;
+
+    sampling::Tester s(d);
+
+    parameters::Parameters p(d);
+
+    ModularCMAES cma(p);
+
+    cma(&sphere);
 }

@@ -1,28 +1,15 @@
 #pragma once
 
-#include <memory>
-#include <random>
-#include <vector>
-#include <utility>
+#include "common.hpp"
 
-#include <Eigen/Eigen>
+//! see ndtri.cpp
+double ppf(const double x);
+
+//! sobol.cpp
+void i8_sobol(int dim_num, long long int *seed, double quasi[]);
 
 namespace sampling
 {
-
-    static inline int SEED = 0;
-    static inline std::mt19937 GENERATOR(SEED);
-
-    /**
-     * @brief Set the global seed and reseed the random generator (mt19937)
-     *
-     * @param seed
-     */
-    void set_seed(const int seed)
-    {
-        SEED = seed;
-        GENERATOR.seed(seed);
-    }
 
     /**
      * @brief Sampler generic class, functor return a vector of random
@@ -31,21 +18,21 @@ namespace sampling
     struct Sampler
     {
         Sampler(const size_t d) : d(d) {}
-        virtual Eigen::VectorXd operator()() = 0;
+        [[nodiscard]] virtual Vector operator()() = 0;
         size_t d;
     };
 
     /**
-     * @brief Testing every row a new number
+     * @brief Testing sampler, simple incrementing generator.
      *
      */
     struct Tester : Sampler
     {
         Tester(const size_t d) : Sampler(d) {}
 
-        Eigen::VectorXd operator()() override
+        [[nodiscard]] Vector operator()() override
         {
-            Eigen::VectorXd x(d);
+            Vector x(d);
             ++i;
             x.array() = static_cast<double>(i);
             return x;
@@ -64,11 +51,11 @@ namespace sampling
 
         Gaussian(const size_t d) : Sampler(d) {}
 
-        [[nodiscard]] Eigen::VectorXd operator()() override
+        [[nodiscard]] Vector operator()() override
         {
-            Eigen::VectorXd x(d);
+            Vector x(d);
             for (auto &xi : x)
-                xi = dist(GENERATOR);
+                xi = dist(rng::GENERATOR);
             return x;
         }
 
@@ -85,7 +72,7 @@ namespace sampling
     {
         Mirrored(const std::shared_ptr<Sampler> &sampler) : Sampler(sampler->d), sampler(sampler) {}
 
-        Eigen::VectorXd operator()() override
+        [[nodiscard]] Vector operator()() override
         {
             if (!mirror)
             {
@@ -99,23 +86,28 @@ namespace sampling
 
     private:
         std::shared_ptr<Sampler> sampler;
-        Eigen::VectorXd previous;
+        Vector previous;
         bool mirror = false;
     };
 
     /**
-     * @brief Orthogonal sampler
+     * @brief Orthogonal sampler.    
+     * This function orthogonalizes <n_samples>, and succesively yields each
+     * of them. It uses HouseHolderQR decomposition in order to compute 
+     * the orthonomalization.
+     * 
+     * Note: result for this thing is not precisly the same as python version
      *
      */
     struct Orthogonal : Sampler
     {
         Orthogonal(const std::shared_ptr<Sampler> sampler, const size_t n_samples)
             : Sampler(sampler->d), sampler(sampler), n(std::max(d, n_samples)),
-              qr(d, n), samples(d, n), I(Eigen::MatrixXd::Identity(n, n))
+              qr(n, d), samples(d, n), I(Matrix::Identity(n, d))
         {
         }
 
-        Eigen::VectorXd operator()() override
+        [[nodiscard]] Vector operator()() override
         {
             if (current >= n)
                 current = 0;
@@ -127,13 +119,8 @@ namespace sampling
 
                 auto norm = samples.colwise().norm().asDiagonal();
 
-                // Jacob: this is what we do in python, but this might be wrong
-                // qr.compute(samples.transpose());
-                // samples = ((qr.householderQ() * I).transpose() * norm).transpose();
-
-                // Jacob: this seems correct;
-                qr.compute(samples);
-                samples = qr.householderQ() * I * norm;
+                qr.compute(samples.transpose());
+                samples = ((qr.householderQ() * I).transpose() * norm);
             }
             return samples.col(current++);
         }
@@ -141,35 +128,45 @@ namespace sampling
     private:
         std::shared_ptr<Sampler> sampler;
         size_t n;
-        Eigen::MatrixXd samples;
-        Eigen::HouseholderQR<Eigen::MatrixXd> qr;
-        Eigen::MatrixXd I;
+        Matrix samples;
+        Eigen::HouseholderQR<Matrix> qr;
+        Matrix I;
         size_t current = 0;
     };
 
+    
+    /**
+     * @brief Generator yielding samples from a Halton sequence.
+     * 
+     */
     struct Halton : Sampler
     {
         Halton(const size_t d, const size_t i = 1) : Sampler(d), i(i)
         {
             primes = sieve(std::max(6, static_cast<int>(d)));
-            while(primes.size() < d)
+            while (primes.size() < d)
                 primes = sieve(primes.size() * primes.size());
             primes.resize(d);
         }
-        
-        Eigen::VectorXd operator()() override
+
+        [[nodiscard]] Vector operator()() override
         {
-            Eigen::VectorXd res(d);
-            for (size_t j = 0; j < d; ++j) 
-                res(j) = next(i, primes[j]);
+            Vector res(d);
+            for (size_t j = 0; j < d; ++j)
+                res(j) = ppf(next(i, primes[j]));
             i++;
-            return res;           
+            return res;
         }
 
+        size_t i;
+        std::vector<int> primes;
 
-        static double next(int index, int base) {
+    private:
+        static double next(int index, int base)
+        {
             double y = 1., x = 0.;
-            while (index > 0){
+            while (index > 0)
+            {
                 auto dm = divmod(index, base);
                 index = dm.first;
                 y *= static_cast<double>(base);
@@ -178,21 +175,14 @@ namespace sampling
             return x;
         }
 
-        
-
-    private:
-        size_t i;
-    public:
-        std::vector<int> primes;
-        
-        static std::pair<int, int> divmod(const double top, const double bottom){
+        static std::pair<int, int> divmod(const double top, const double bottom)
+        {
             const auto div = static_cast<int>(top / bottom);
             return {div, top - div * bottom};
         }
-        
+
         static std::vector<int> sieve(const int n)
         {
-            // Jacob: not the correct result, prime 29 not found
             std::vector<unsigned char> mask(n / 3 + (n % 6 == 2), 1);
             size_t s = static_cast<size_t>(pow(n, .5)) / 3 + 1;
             for (size_t i = 1; i < s; ++i)
@@ -200,9 +190,9 @@ namespace sampling
                 if (mask[i])
                 {
                     auto k = 3 * i + 1 | 1;
-                    for (int j = k * k / 3; j < 2 * k; ++j)
+                    for (int j = k * k / 3; j < 2 * k - 1; ++j)
                         mask[j] = 0;
-                    for (int j = k * (k - 2 * (i & 1) + 4) / 3; j < 2 * k; ++j)
+                    for (int j = k * (k - 2 * (i & 1) + 4) / 3; j < 2 * k - 1; ++j)
                         mask[j] = 0;
                 }
             }
@@ -216,7 +206,28 @@ namespace sampling
         }
     };
 
+    /**
+     * @brief Generator yielding samples from a Sobol sequence.
+     * 
+     */
     struct Sobol : Sampler
     {
+        Sobol(const size_t d) : Sampler(d), seed(rng::random_integer(2, std::max(3, static_cast<int>(d * d))))
+        {
+        }
+
+        [[nodiscard]] Vector operator()() override
+        {
+            Vector res(d);
+            i8_sobol(d, &seed, res.data());
+            for (size_t j = 0; j < d; ++j)
+                res(j) = ppf(res(j));
+
+            seed += d;
+            return res;
+        }
+
+    private:
+        long long seed;
     };
 }

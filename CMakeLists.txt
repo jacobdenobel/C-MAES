@@ -15,24 +15,24 @@ else()
     SET(CMAKE_CXX_STANDARD_REQUIRED ON)
 endif()
 
-include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake) 
 conan_basic_setup()
 
-file(GLOB HEADERS include/*.hpp)
-file(GLOB SOURCES src/*.cpp)
 
-add_library(c++maes ${SOURCES})
+file(GLOB SOURCES src/*.cpp)
+ 
+add_library(c++maes SHARED ${SOURCES})
 target_link_libraries(c++maes ${CONAN_LIBS})
 
-target_include_directories(c++maes
-INTERFACE
+target_include_directories(c++maes 
+PUBLIC
     # Interface paths are relative to the installation path, not the current directory.
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include> 
 )
 
 target_compile_features(c++maes
-INTERFACE
+PUBLIC
     cxx_std_17
 )
 
