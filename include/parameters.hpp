@@ -10,8 +10,8 @@ namespace parameters
         size_t t = 0;
         size_t used_budget = 0;
         double target = 1e-8;
-        size_t max_generations = 100;
-        size_t budget = 1000;
+        size_t max_generations = -1;
+        size_t budget = 100000;
         Vector xopt = Vector(0);
         double fopt = std::numeric_limits<double>::infinity();
     };

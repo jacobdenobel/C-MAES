@@ -58,7 +58,7 @@ struct ModularCMAES {
 
     void operator()(std::function<double(Vector)> objective) {
         while(step(objective)) {
-            if (p.stats.t % 10 == 0)
+            if (p.stats.t % (p.dim * 2) == 0)
                 std::cout << p.stats << std::endl;
         }
         std::cout << p.stats << std::endl;
