@@ -36,7 +36,15 @@ PUBLIC
     cxx_std_17
 )
 
+ 
 
-add_executable(main main.cpp)
-target_link_libraries(main PRIVATE c++maes)
+enable_testing()
 
+add_subdirectory(external/IOHexperimenter)
+file(GLOB_RECURSE ioh_HEADERS external/IOHexperimenter/include/ioh *.hpp)
+target_precompile_headers(ioh INTERFACE ${HEADERS})
+
+
+add_executable(integration tests/integration.cpp)
+target_link_libraries(integration PRIVATE c++maes ioh)
+add_test(NAME integration  COMMAND $<TARGET_FILE:integration>)

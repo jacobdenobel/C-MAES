@@ -1,23 +1,21 @@
 #pragma once
 
 #include "common.hpp"
-#include "sampling.hpp"
 #include "population.hpp"
 #include "parameters.hpp"
 
 
 struct ModularCMAES {
     parameters::Parameters p;
-    sampling::Gaussian sampler;
+    bool verbose = true;
 
-
-    ModularCMAES(const parameters::Parameters& p): p(p), sampler(p.dim) {
+    ModularCMAES(const parameters::Parameters& p): p(p) {
 
     }
 
     void mutate(std::function<double(Vector)> objective) {
         for (size_t i = 0; i < p.pop.Z.cols(); ++i)
-            p.pop.Z.col(i) = sampler();
+            p.pop.Z.col(i) = (*p.sampler)();
 
         p.pop.Y = p.dyn.B * (p.dyn.d.asDiagonal() * p.pop.Z);
         p.pop.X = (p.dyn.sigma * p.pop.Y).colwise() + p.dyn.m;
@@ -58,10 +56,11 @@ struct ModularCMAES {
 
     void operator()(std::function<double(Vector)> objective) {
         while(step(objective)) {
-            if (p.stats.t % (p.dim * 2) == 0)
+            if (p.stats.t % (p.dim * 2) == 0 and verbose)
                 std::cout << p.stats << std::endl;
         }
-        std::cout << p.stats << std::endl;
+        if(verbose)
+            std::cout << p.stats << std::endl;
     }
 
     bool break_conditions() {
