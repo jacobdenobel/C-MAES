@@ -3,6 +3,9 @@
 #include "population.hpp"
 #include "sampling.hpp"
 
+#include <utility>
+#include <optional>
+
 using size_to = std::optional<size_t>;
 
 namespace parameters
@@ -146,7 +149,7 @@ namespace parameters
 
         void adapt();
 
-        std::shared_ptr<sampling::Sampler> get_sampler();
+        static std::shared_ptr<sampling::Sampler> get_sampler(const size_t dim, const Modules& mod, const Strategy& strat);
     };
 }
 

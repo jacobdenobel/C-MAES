@@ -8,16 +8,16 @@ void ModularCMAES::mutate(std::function<double(Vector)> objective)
     if (p.mod.threshold_convergence)
         scale_with_threshold(p.pop.Z, p.strat.threshold(p.stats));
     
-    if (p.mod.ssa == parameters::StepSizeAdaptation::LPXNES or p.mod.sample_sigma){
-        // auto sampler = sampling::Random(p.dim, std::lognormal_distribution<>(std::log(p.dyn.sigma), p.strat.beta));
-
-    }else{
-        p.pop.s = p.pop.s.Constant(p.pop.s.size(), p.dyn.sigma).eval();
-    }
+    // if (p.mod.ssa == parameters::StepSizeAdaptation::LPXNES or p.mod.sample_sigma){
+    //     // auto sampler = sampling::Random(p.dim, std::lognormal_distribution<>(std::log(p.dyn.sigma), p.strat.beta));
+    //
+    // }else{
+    //     p.pop.s = p.pop.s.Constant(p.pop.s.size(), p.dyn.sigma).eval();
+    // }
     
     
     p.pop.Y = p.dyn.B * (p.dyn.d.asDiagonal() * p.pop.Z);
-    p.pop.X = (p.pop.s.asDiagonal() * p.pop.Y).colwise() + p.dyn.m;
+    p.pop.X = (p.dyn.sigma * p.pop.Y).colwise() + p.dyn.m;
 
     for (size_t i = 0; i < p.pop.X.cols(); ++i)
     {

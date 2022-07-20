@@ -91,10 +91,10 @@ int main(int argc, char *argv[]){
     std::cout << (*problem) << std::endl;
 
     parameters::Parameters p(d);
-    p.mod.sampler = parameters::BaseSampler::GAUSSIAN;
-    p.sampler = p.get_sampler();
+    // p.mod.sampler = parameters::BaseSampler::GAUSSIAN;
+    // p.sampler = p.get_sampler(p.dim, p.mod, p.strat);
 
-    p.stats.target = problem->objective().y +  1e-8;
+    p.stats.target = problem->objective().y + 1e-8;
     p.stats.budget = 1e4 * d;
 
     ModularCMAES cma(p);

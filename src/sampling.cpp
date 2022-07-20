@@ -77,7 +77,7 @@ namespace sampling
         return {div, top - div * bottom};
     }
 
-    std::vector<int> Halton::sieve(const int n)
+    std::vector<int> Halton::sieve(const size_t n)
     {
         std::vector<unsigned char> mask(n / 3 + (n % 6 == 2), 1);
         size_t s = static_cast<size_t>(pow(n, .5)) / 3 + 1;

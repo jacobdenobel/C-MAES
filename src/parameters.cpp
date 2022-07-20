@@ -7,8 +7,8 @@ namespace parameters
           mu(m.value_or(lambda / 2)),
           seq_cutoff_factor(std::max(2., seq_cutoff_factor) ? mod.mirrored == Mirrored::PAIRWISE : seq_cutoff_factor),
           seq_cutoff(mu * seq_cutoff_factor), lb(Vector::Ones(dim) * -5.), ub(Vector::Ones(dim) * 5), 
-          diameter((ub - lb).norm())//,
-        //   beta(std::log(2.0) / std::max((std::sqrt(dim) * std::log(dim)), 1.0))
+          diameter((ub - lb).norm()),
+		  beta(std::log(2.0) / std::max((std::sqrt(dim) * std::log(dim)), 1.0))
     {
         if (mod.mirrored == Mirrored::PAIRWISE and lambda % 2 != 0)
             lambda++;
@@ -24,7 +24,7 @@ namespace parameters
 
     Parameters::Parameters(const size_t dim) : dim(dim), dyn(dim), strat(dim, mod), 
                                                weights(dim, strat.mu, strat.lambda, mod),
-                                               sampler(get_sampler()),
+                                               sampler(get_sampler(dim, mod, strat)),
                                                pop(dim, strat.lambda), old_pop(dim, strat.lambda)
     {
     }
@@ -36,9 +36,10 @@ namespace parameters
         stats.t++;
     }
 
-    std::shared_ptr<sampling::Sampler> Parameters::get_sampler()
+    std::shared_ptr<sampling::Sampler> Parameters::get_sampler(const size_t dim, const Modules& mod, const Strategy& strat)
     {
-        switch (mod.sampler)
+        std::shared_ptr<sampling::Sampler> sampler;
+    	switch (mod.sampler)
         {
         case BaseSampler::GAUSSIAN:
             sampler = std::make_shared<sampling::Gaussian>(dim);
