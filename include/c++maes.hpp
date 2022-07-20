@@ -1,76 +1,27 @@
 #pragma once
 
-#include "common.hpp"
-#include "population.hpp"
 #include "parameters.hpp"
 
-
-struct ModularCMAES {
+struct ModularCMAES
+{
     parameters::Parameters p;
     bool verbose = true;
 
-    ModularCMAES(const parameters::Parameters& p): p(p) {
+    ModularCMAES(const parameters::Parameters &p) : p(p) {}
 
-    }
+    void mutate(std::function<double(Vector)> objective);
 
-    void mutate(std::function<double(Vector)> objective) {
-        for (size_t i = 0; i < p.pop.Z.cols(); ++i)
-            p.pop.Z.col(i) = (*p.sampler)();
+    void select();
 
-        p.pop.Y = p.dyn.B * (p.dyn.d.asDiagonal() * p.pop.Z);
-        p.pop.X = (p.dyn.sigma * p.pop.Y).colwise() + p.dyn.m;
+    void recombine();
 
-        for (size_t i = 0; i < p.pop.X.cols(); ++i){
-            p.pop.f(i) = objective(p.pop.X.col(i));
-            p.stats.used_budget++;
-        }
-    } 
+    bool step(std::function<double(Vector)> objective);
 
-    void select() {
-        if (p.mod.elitist and p.stats.t != 0)
-            p.pop += p.old_pop;
+    void operator()(std::function<double(Vector)> objective);
 
-        p.pop.sort();
-        p.pop.resize_cols(p.strat.lambda);
+    bool sequential_break_conditions(const size_t i, const double f) const;
 
-        if (p.pop.f(0) < p.stats.fopt){
-            p.stats.fopt = p.pop.f(0);
-            p.stats.xopt = p.pop.X(Eigen::all, 0);
-        }
-    }
-
-    void recombine() {
-        p.dyn.m_old = p.dyn.m;
-        p.dyn.m = p.dyn.m_old + (
-            (p.pop.X.leftCols(p.strat.mu).colwise() - p.dyn.m_old) * p.weights.p 
-        );
-    }
-
-    bool step(std::function<double(Vector)> objective) {
-        mutate(objective);
-        select();
-        recombine();
-        p.adapt();
-        return !break_conditions();
-    }  
-
-    void operator()(std::function<double(Vector)> objective) {
-        while(step(objective)) {
-            if (p.stats.t % (p.dim * 2) == 0 and verbose)
-                std::cout << p.stats << std::endl;
-        }
-        if(verbose)
-            std::cout << p.stats << std::endl;
-    }
-
-    bool break_conditions() {
-        const bool target_reached = p.stats.target >= p.stats.fopt;
-        const bool budget_used_up = p.stats.used_budget >= p.stats.budget;
-        const bool exceed_gens = p.stats.t >= p.stats.max_generations;
-
-        return exceed_gens or target_reached or budget_used_up;
-    }
+    bool break_conditions() const;
 };
 
-
-
+void scale_with_threshold(Matrix& z, const double t);

@@ -15,20 +15,6 @@ double sphere(const Vector &x)
 }
 
 
-struct ioh_function {
-    std::shared_ptr<ioh::problem::Real> p;
-    std::vector<double> v;
-    ioh_function(const std::shared_ptr<ioh::problem::Real>& p): p(p) {
-        v.resize(p->meta_data().n_variables);
-    }
-
-    double operator()(const Vector &x) {
-        Eigen::VectorXd::Map(&v[0], x.size()) = x;
-        return (*p)(v);
-    }
-};
-
-
 std::pair<double, size_t> compute_ert(const std::vector<size_t> &running_times, const size_t budget)
 {
     size_t successfull_runs = 0, total_rt = 0;
@@ -43,6 +29,21 @@ std::pair<double, size_t> compute_ert(const std::vector<size_t> &running_times, 
 }
 
 
+struct ioh_function {
+    std::shared_ptr<ioh::problem::Real> p;
+    std::vector<double> v;
+    ioh_function(const std::shared_ptr<ioh::problem::Real>& p): p(p) {
+        v.resize(p->meta_data().n_variables);
+    }
+
+    double operator()(const Vector &x) {
+        Eigen::VectorXd::Map(&v[0], x.size()) = x;
+        return (*p)(v);
+    }
+};
+
+
+
 int run_ioh()
 {
     const int d = 5;
@@ -51,7 +52,8 @@ int run_ioh()
 
     auto& factory = ioh::problem::ProblemRegistry<ioh::problem::Real>::instance();
     auto logger = ioh::logger::Analyzer();
-
+    
+    
     ioh::suite::BBOB suite;
 
     for (const auto& problem: suite){
@@ -81,7 +83,6 @@ int main(int argc, char *argv[]){
     const int s = argc < 4 ? 1 : std::stoi(argv[3]);
 
     rng::set_seed(s);
-    
     if (f == 0)
         return run_ioh();
 
@@ -91,9 +92,9 @@ int main(int argc, char *argv[]){
 
     parameters::Parameters p(d);
     p.mod.sampler = parameters::BaseSampler::GAUSSIAN;
-    p.sampler = p.get_sampler(p.dim, p.mod, p.strat);
+    p.sampler = p.get_sampler();
 
-    p.stats.target = problem->objective().y + 1e-8;
+    p.stats.target = problem->objective().y +  1e-8;
     p.stats.budget = 1e4 * d;
 
     ModularCMAES cma(p);
@@ -102,6 +103,7 @@ int main(int argc, char *argv[]){
     auto start = high_resolution_clock::now();
     
     cma(ioh_function(problem));
+    // cma(&sphere);
 
     auto duration = duration_cast<milliseconds>(high_resolution_clock::now() - start);
     std::cout << "Time elapsed: " << duration.count() / 1000.0 << std::endl;
