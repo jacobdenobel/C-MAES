@@ -1,5 +1,25 @@
 #include "parameters.hpp"
 
+//! Assumes the vector to be arready sorted
+double median(const Vector &x)
+{
+    if (x.size() % 2 == 0)
+        return (x(x.size() / 2) + x(x.size() / 2 - 1)) / 2.0;
+    return x(x.size() / 2);
+}
+
+Vector searchsorted(const Vector& query, const Vector& database){
+    Vector res(query.size());
+    auto i = 0;
+    for(const auto& xi: query){
+        auto it = std::find(std::begin(database), std::end(database), xi);
+        res(++i) = std::distance(std::begin(database), it);
+    }
+    return res;
+}
+
+
+
 namespace parameters
 {
     Dynamic::Dynamic(const size_t dim) : m(Vector::Random(dim) * 5), m_old(dim), dm(Vector::Zero(dim)), pc(Vector::Zero(dim)), ps(Vector::Zero(dim)), d(Vector::Ones(dim)),
@@ -19,11 +39,11 @@ namespace parameters
 
         hs = actual_ps_length < expected_ps_length;
         pc = (1.0 - w.cc) * pc + (hs * sqrt(w.cc * (2.0 - w.cc) * w.mueff)) * dm;
-
     }
-    
-    void Dynamic::adapt_sigma(const Weights &w, const Modules& m) 
+
+    void Dynamic::adapt_sigma(const Weights &w, const Modules &m, const Population &pop, const Population &old_pop, const Stats &stats, const Strategy &strat)
     {
+
         switch (m.ssa)
         {
         case StepSizeAdaptation::CSA:
@@ -31,23 +51,59 @@ namespace parameters
             break;
         case StepSizeAdaptation::LPXNES:
         {
-            const auto wt = (w.w.array() > 0).select(w.w, Vector::Zero(w.w.size()));
-            std::cout << wt << std::endl;
-            exit(0);
+            const auto z = std::exp(w.cs * pop.s.array().log().matrix().dot(w.clipped()));
+            sigma = std::pow(sigma, 1.0 - w.cs) * z;
         }
         break;
-
-        // need old population
         case StepSizeAdaptation::XNES:
+        {
+            const double z = ((inv_root_C * pop.Y).colwise().norm().array().pow(2.) - dd).matrix() * w.clipped();
+            sigma *= std::exp((w.cs / std::sqrt(dd)) * z);
+        }
+        break;
+        case StepSizeAdaptation::TPA:
+            s = ((1.0 - w.cs) * s) + (w.cs * rank_tpa);
+            sigma *= std::exp(s);
             break;
+
         case StepSizeAdaptation::MSR:
-            break;
-         case StepSizeAdaptation::TPA:
-            break;   
+        {
+            if (stats.t != 0)
+            {
+                //TODO: check why this sucks on sphere 1.8k evals 5d
+                const double lambda = static_cast<double>(strat.lambda);
+                const double k = (pop.f.array() < median(old_pop.f)).cast<double>().sum();
+                const auto z = (2.0 / lambda) * (k - ((lambda + 1.0) / 2.0));
+                s = ((1.0 - w.cs) * s) + (w.cs * z);
+                sigma *= std::exp(s / (2.0 - (2.0 / dd)));
+            }
+        }
+        break;
         case StepSizeAdaptation::MXNES:
-            break;    
+            if (stats.t != 0)
+            {
+                const auto z = (w.mueff * std::pow((inv_root_C * dm).norm(), 2)) - dd;
+                sigma *= std::exp((w.cs / dd) * z);
+            }
+            break;
         case StepSizeAdaptation::PSR:
-            break;     
+            if (stats.t != 0)
+            {
+                const auto n = std::min(pop.n, old_pop.n);
+                auto combined = Vector(n+n);
+                combined << pop.f.head(n), old_pop.f.head(n);
+                const auto idx = utils::sort_indexes(combined);
+                combined = combined(idx).eval();
+
+                auto r = searchsorted(pop.f.head(n), combined);
+                auto r_old = searchsorted(old_pop.f.head(n), combined);
+
+                const auto z = (r_old - r).sum() / std::pow(n, 2) - strat.succes_ratio;
+
+                s = (1.0 - w.cs) * s + (w.cs * z);
+                sigma *= std::exp(s / (2.0 - (2.0 / dd)));
+            }
+            break; 
         }
     }
 
@@ -105,14 +161,12 @@ namespace parameters
         B = eigensolver.eigenvectors();
 
         inv_root_C = (B * d.cwiseInverse().asDiagonal()) * B.transpose();
-
-  
     }
 
-    void Dynamic::adapt(const Weights &w, const Stats &stats, const Strategy &strat, const Modules &m, const Population &pop)
+    void Dynamic::adapt(const Weights &w, const Stats &stats, const Strategy &strat, const Modules &m, const Population &pop, const Population &old_pop)
     {
         adapt_evolution_paths(w, stats, strat);
-        adapt_sigma(w, m);
+        adapt_sigma(w, m, pop, old_pop, stats, strat);
         adapt_covariance_matrix(w, m, pop, strat);
         perform_eigendecomposition(stats);
     }

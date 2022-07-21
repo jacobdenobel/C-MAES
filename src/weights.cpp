@@ -91,4 +91,9 @@ namespace parameters
             n(n.size() - i) = 1.0 / pow(2.0, static_cast<double>(i + 1)) + base2;
     }
 
+
+    Vector Weights::clipped() const {
+        return (w.array() > 0).select(w, Vector::Zero(w.size()));
+    }
+
 }

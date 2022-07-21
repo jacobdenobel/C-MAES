@@ -3,8 +3,8 @@
 #include "population.hpp"
 #include "sampling.hpp"
 
-#include <utility>
 #include <optional>
+#include <utility>
 
 using size_to = std::optional<size_t>;
 
@@ -51,11 +51,11 @@ namespace parameters
         bool orthogonal = false;
         bool sequential_selection = false;
         bool threshold_convergence = false;
-        bool sample_sigma = true;
+        bool sample_sigma = false;
         RecombinationWeights weights = RecombinationWeights::DEFAULT;
         BaseSampler sampler = BaseSampler::GAUSSIAN;
         Mirrored mirrored = Mirrored::NONE;
-        StepSizeAdaptation ssa = StepSizeAdaptation::LPXNES;
+        StepSizeAdaptation ssa = StepSizeAdaptation::MSR;
     };
 
     struct Stats
@@ -79,6 +79,7 @@ namespace parameters
         double diameter;
         double init_threshold = 0.1;
         double decay_factor = 0.995;
+        double succes_ratio = .25;
         double beta;
 
         Strategy(const size_t dim, const Modules &mod, const size_to l = std::nullopt, const size_to m = std::nullopt);
@@ -103,6 +104,8 @@ namespace parameters
         void weights_equal(const size_t mu);
 
         void weights_half_power_lambda(const size_t mu, const size_t lambda);
+
+        Vector clipped() const;
     };
 
     struct Dynamic
@@ -115,13 +118,14 @@ namespace parameters
         double chiN;
         double sigma = .5;
         double s = 0;
+        double rank_tpa = 0.0;
         bool hs = true;
 
         Dynamic(const size_t dim);
 
         void adapt_evolution_paths(const Weights &w, const Stats &stats, const Strategy &strat);
 
-        void adapt_sigma(const Weights &w, const Modules &m);
+        void adapt_sigma(const Weights &w, const Modules &m, const Population &pop, const Population &old_pop, const Stats &stats, const Strategy &strat);
 
         void adapt_covariance_matrix(const Weights &w, const Modules &m, const Population &pop, const Strategy &strat);
 
@@ -129,7 +133,7 @@ namespace parameters
 
         void perform_eigendecomposition(const Stats &stats);
 
-        void adapt(const Weights &w, const Stats &stats, const Strategy &strat, const Modules &m, const Population &pop);
+        void adapt(const Weights &w, const Stats &stats, const Strategy &strat, const Modules &m, const Population &pop, const Population &old_pop);
     };
 
     struct Parameters
@@ -141,15 +145,15 @@ namespace parameters
         Strategy strat;
         Weights weights;
         std::shared_ptr<sampling::Sampler> sampler;
-            	
+
         Population pop;
         Population old_pop;
-    	
+
         Parameters(const size_t dim);
 
         void adapt();
 
-        static std::shared_ptr<sampling::Sampler> get_sampler(const size_t dim, const Modules& mod, const Strategy& strat);
+        static std::shared_ptr<sampling::Sampler> get_sampler(const size_t dim, const Modules &mod, const Strategy &strat);
     };
 }
 

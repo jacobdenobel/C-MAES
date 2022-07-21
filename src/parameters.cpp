@@ -31,7 +31,7 @@ namespace parameters
 
     void Parameters::adapt()
     {
-        dyn.adapt(weights, stats, strat, mod, pop);
+        dyn.adapt(weights, stats, strat, mod, pop, old_pop);
         old_pop = pop;
         stats.t++;
     }
