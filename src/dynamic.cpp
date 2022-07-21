@@ -2,7 +2,7 @@
 
 namespace parameters
 {
-    Dynamic::Dynamic(const size_t dim) : m(Vector::Random(dim) * 5), m_old(dim), dm(dim), pc(dim), ps(dim), d(Vector::Ones(dim)),
+    Dynamic::Dynamic(const size_t dim) : m(Vector::Random(dim) * 5), m_old(dim), dm(Vector::Zero(dim)), pc(Vector::Zero(dim)), ps(Vector::Zero(dim)), d(Vector::Ones(dim)),
                                          B(Matrix::Identity(dim, dim)), C(Matrix::Identity(dim, dim)),
                                          inv_root_C(Matrix::Identity(dim, dim)), dd(static_cast<double>(dim)),
                                          chiN(sqrt(dd) * (1.0 - 1.0 / (4.0 * dd) + 1.0 / (21.0 * pow(dd, 2.0))))
@@ -19,6 +19,7 @@ namespace parameters
 
         hs = actual_ps_length < expected_ps_length;
         pc = (1.0 - w.cc) * pc + (hs * sqrt(w.cc * (2.0 - w.cc) * w.mueff)) * dm;
+
     }
     
     void Dynamic::adapt_sigma(const Weights &w, const Modules& m) 
@@ -99,6 +100,8 @@ namespace parameters
         B = eigensolver.eigenvectors();
 
         inv_root_C = (B * d.cwiseInverse().asDiagonal()) * B.transpose();
+
+  
     }
 
     void Dynamic::adapt(const Weights &w, const Stats &stats, const Strategy &strat, const Modules &m, const Population &pop)

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.12)
-project(CMAES)
+project(CMAES VERSION 0.0.1 LANGUAGES CXX)
   
 SET(CMAKE_CXX_STANDARD 17) 
 SET(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -10,7 +10,7 @@ conan_basic_setup()
 
 
 file(GLOB SOURCES src/*.cpp) 
-message(${SOURCES})
+
 add_library(cmaes STATIC ${SOURCES}) 
 target_link_libraries(cmaes ${CONAN_LIBS})
  
@@ -36,7 +36,6 @@ target_link_libraries(integration PRIVATE cmaes ioh)
 target_precompile_headers(integration 
   PRIVATE 
   external/IOHexperimenter/include/ioh.hpp
-  
 )
 
 add_test(NAME integration  COMMAND $<TARGET_FILE:integration>)
