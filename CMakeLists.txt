@@ -4,7 +4,8 @@ project(CMAES VERSION 0.0.1 LANGUAGES CXX)
 SET(CMAKE_CXX_STANDARD 17) 
 SET(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-
+ 
+execute_process(COMMAND conan install ${CMAKE_SOURCE_DIR})
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake) 
 conan_basic_setup()
 
