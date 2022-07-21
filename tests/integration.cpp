@@ -91,6 +91,7 @@ int main(int argc, char *argv[]){
     std::cout << (*problem) << std::endl;
 
     parameters::Parameters p(d);
+    p.dyn.m = (*p.sampler)();
     // p.mod.sampler = parameters::BaseSampler::GAUSSIAN;
     // p.sampler = p.get_sampler(p.dim, p.mod, p.strat);
 

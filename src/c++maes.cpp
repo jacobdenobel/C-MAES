@@ -15,7 +15,6 @@ void ModularCMAES::mutate(std::function<double(Vector)> objective)
     //     p.pop.s = p.pop.s.Constant(p.pop.s.size(), p.dyn.sigma).eval();
     // }
     
-    
     p.pop.Y = p.dyn.B * (p.dyn.d.asDiagonal() * p.pop.Z);
     p.pop.X = (p.dyn.sigma * p.pop.Y).colwise() + p.dyn.m;
 
@@ -49,12 +48,15 @@ void ModularCMAES::select()
         p.stats.fopt = p.pop.f(0);
         p.stats.xopt = p.pop.X(Eigen::all, 0);
     }
+    // std::cout << p.pop << std::endl;
 }
 
 void ModularCMAES::recombine()
 {
     p.dyn.m_old = p.dyn.m;
     p.dyn.m = p.dyn.m_old + ((p.pop.X.leftCols(p.strat.mu).colwise() - p.dyn.m_old) * p.weights.p);
+    // std::cout << p.dyn.m <<std::endl;
+    // exit(0);
 }
 
 bool ModularCMAES::step(std::function<double(Vector)> objective)

@@ -28,7 +28,7 @@ namespace parameters
         c1 = 2.0 / (pow(d + 1.3, 2) + mueff);
         cmu = std::min(1.0 - c1, 2.0 * ((mueff - 2.0 + (1.0 / mueff)) / (pow(d + 2.0, 2) + (2.0 * mueff / 2))));
         cc = (4.0 + (mueff / d)) / (d + 4.0 + (2.0 * mueff / d));
-        damps = 1.0 + (2.0 * std::max(0.0, sqrt((mueff - 1.0) / (d + 1)) - 1) + cs);
+        
 
         switch (m.ssa)
         {
@@ -50,7 +50,7 @@ namespace parameters
         default:
             cs = .3;
         }
-
+        damps = 1.0 + (2.0 * std::max(0.0, sqrt((mueff - 1.0) / (d + 1)) - 1) + cs);
         const double amu_neg = 1.0 + (c1 / static_cast<double>(mu));
         const double amueff_neg = 1.0 + ((2.0 * mueff_neg) / (mueff + 2.0));
         const double aposdef_neg = (1.0 - c1 - cmu) / (d * cmu);

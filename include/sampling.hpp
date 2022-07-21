@@ -46,7 +46,7 @@ namespace sampling
     {
 
         Random(const size_t d) : Sampler(d), dist{} {}
-        Random(const size_t d, const Distribution& dist) : Sampler(d), dist(dist) {}
+        Random(const size_t d, const Distribution &dist) : Sampler(d), dist(dist) {}
 
         [[nodiscard]] Vector operator()() override
         {
@@ -60,6 +60,19 @@ namespace sampling
         Distribution dist;
     };
 
+    /**
+     * @brief distribution which in compbination with mt19997 produces the same
+     * random numbers for gcc and msvc
+     */
+    template <typename T = double>
+    struct uniform
+    {
+        template <typename G>
+        T operator()(G &gen)
+        {
+            return static_cast<T>(2.0 * gen() - gen.min()) / gen.max() - gen.min() - 1;
+        }
+    };
     //! Gaussian distribution sampler
     using Gaussian = Random<std::normal_distribution<double>>;
 
