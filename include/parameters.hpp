@@ -51,11 +51,11 @@ namespace parameters
         bool orthogonal = false;
         bool sequential_selection = false;
         bool threshold_convergence = false;
-        bool sample_sigma = false;
+        bool sample_sigma = true;
         RecombinationWeights weights = RecombinationWeights::DEFAULT;
         BaseSampler sampler = BaseSampler::GAUSSIAN;
         Mirrored mirrored = Mirrored::NONE;
-        StepSizeAdaptation ssa = StepSizeAdaptation::CSA;
+        StepSizeAdaptation ssa = StepSizeAdaptation::LPXNES;
     };
 
     struct Stats
@@ -141,10 +141,10 @@ namespace parameters
         Strategy strat;
         Weights weights;
         std::shared_ptr<sampling::Sampler> sampler;
-
+            	
         Population pop;
         Population old_pop;
-
+    	
         Parameters(const size_t dim);
 
         void adapt();

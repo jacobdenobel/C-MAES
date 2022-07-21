@@ -30,7 +30,12 @@ namespace parameters
             sigma *= std::exp((w.cs / w.damps) * ((ps.norm() / chiN) - 1));
             break;
         case StepSizeAdaptation::LPXNES:
-            break;
+        {
+            const auto wt = (w.w.array() > 0).select(w.w, Vector::Zero(w.w.size()));
+            std::cout << wt << std::endl;
+            exit(0);
+        }
+        break;
 
         // need old population
         case StepSizeAdaptation::XNES:
