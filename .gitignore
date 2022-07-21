@@ -4,3 +4,5 @@ build
 .vs
 a.out
 test.cpp
+external
+
