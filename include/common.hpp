@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <numeric>
 #include <ciso646>
+#include <optional>
 
 #define _USE_MATH_DEFINES
 #include <math.h>

@@ -6,8 +6,7 @@ namespace parameters
         : lambda(l.value_or(4 + std::floor(3 * std::log(dim)))),
           mu(m.value_or(lambda / 2)),
           seq_cutoff_factor(std::max(2., seq_cutoff_factor) ? mod.mirrored == Mirrored::PAIRWISE : seq_cutoff_factor),
-          seq_cutoff(mu * seq_cutoff_factor), lb(Vector::Ones(dim) * -5.), ub(Vector::Ones(dim) * 5), 
-          diameter((ub - lb).norm()),
+          seq_cutoff(mu * seq_cutoff_factor), bounds(bounds::get(dim, mod.bound_correction)),
 		  beta(std::log(2.0) / std::max((std::sqrt(dim) * std::log(dim)), 1.0))
     {
         if (mod.mirrored == Mirrored::PAIRWISE and lambda % 2 != 0)
@@ -19,7 +18,7 @@ namespace parameters
 
     [[nodiscard]] double Strategy::threshold(const Stats &s) const
     {
-        return init_threshold * diameter * pow(static_cast<double>(s.budget - s.evaluations) / static_cast<double>(s.budget), decay_factor);
+        return init_threshold * bounds->diameter * pow(static_cast<double>(s.budget - s.evaluations) / static_cast<double>(s.budget), decay_factor);
     }
 
     Parameters::Parameters(const size_t dim) : dim(dim), dyn(dim), strat(dim, mod), 

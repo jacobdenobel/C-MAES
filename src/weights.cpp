@@ -63,10 +63,10 @@ namespace parameters
     void Weights::weights_default(const size_t lambda)
     {
         const double base = std::log((static_cast<double>(lambda) + 1.) / 2.0);
-        for (size_t i = 0; i < p.size(); ++i)
+        for (auto i = 0; i < p.size(); ++i)
             p(i) = base - std::log(static_cast<double>(i + 1));
 
-        for (size_t i = 0; i < n.size(); ++i)
+        for (auto i = 0; i < n.size(); ++i)
             n(i) = base - std::log(static_cast<double>(i + 1 + p.size()));
     }
 
@@ -84,10 +84,10 @@ namespace parameters
         const double delta = static_cast<double>(lambda - mu);
         const double base2 = (1.0 / pow(2.0, delta)) / delta;
 
-        for (size_t i = 0; i < p.size(); ++i)
+        for (auto i = 0; i < p.size(); ++i)
             p(i) = dmu / pow(2.0, static_cast<double>(i + 1)) + base;
 
-        for (size_t i = 0; i < n.size(); ++i)
+        for (auto i = 0; i < n.size(); ++i)
             n(n.size() - i) = 1.0 / pow(2.0, static_cast<double>(i + 1)) + base2;
     }
 

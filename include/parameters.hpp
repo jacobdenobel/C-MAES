@@ -2,9 +2,7 @@
 
 #include "population.hpp"
 #include "sampling.hpp"
-
-#include <optional>
-#include <utility>
+#include "bounds.hpp"
 
 using size_to = std::optional<size_t>;
 
@@ -44,6 +42,7 @@ namespace parameters
         HALF_POWER_LAMBDA
     };
 
+
     struct Modules
     {
         bool elitist = false;
@@ -55,7 +54,8 @@ namespace parameters
         RecombinationWeights weights = RecombinationWeights::DEFAULT;
         BaseSampler sampler = BaseSampler::GAUSSIAN;
         Mirrored mirrored = Mirrored::NONE;
-        StepSizeAdaptation ssa = StepSizeAdaptation::MSR;
+        StepSizeAdaptation ssa = StepSizeAdaptation::CSA;
+        bounds::CorrectionMethod bound_correction = bounds::CorrectionMethod::MIRROR;
     };
 
     struct Stats
@@ -75,11 +75,13 @@ namespace parameters
         size_t mu;
         double seq_cutoff_factor = 1.;
         size_t seq_cutoff;
-        Vector lb, ub;
-        double diameter;
+        std::shared_ptr<bounds::BoundCorrection> bounds;
+        
         double init_threshold = 0.1;
         double decay_factor = 0.995;
         double succes_ratio = .25;
+        double a_tpa = 0.5;
+        double b_tpa = 0.0;
         double beta;
 
         Strategy(const size_t dim, const Modules &mod, const size_to l = std::nullopt, const size_to m = std::nullopt);

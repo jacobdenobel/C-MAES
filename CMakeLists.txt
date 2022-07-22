@@ -4,19 +4,20 @@ project(CMAES VERSION 0.0.1 LANGUAGES CXX)
 SET(CMAKE_CXX_STANDARD 17) 
 SET(CMAKE_CXX_STANDARD_REQUIRED ON)
 
- 
+set(CONAN_DISABLE_CHECK_COMPILER ON)
 execute_process(COMMAND conan install ${CMAKE_SOURCE_DIR})
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake) 
+
 conan_basic_setup()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse2 -march=native")
 
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:SSE2")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX2")
 endif()
+  
  
-
 file(GLOB SOURCES src/*.cpp) 
 
 add_library(cmaes STATIC ${SOURCES}) 
@@ -27,7 +28,7 @@ PUBLIC
     # Interface paths are relative to the installation path, not the current directory.
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include> 
-)
+) 
  
 target_compile_features(cmaes
 PUBLIC

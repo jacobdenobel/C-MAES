@@ -46,7 +46,7 @@ struct ioh_function {
 
 int run_ioh()
 {
-    const int d = 5;
+    const size_t d = 5;
     // const int f = 3;
     const size_t reps = 10;
 
@@ -64,7 +64,7 @@ int run_ioh()
         for (size_t i = 0; i < reps; ++i){
             parameters::Parameters p(d);
             p.stats.target = problem->objective().y + 1e-8;
-            p.stats.budget = 1e4 * d;
+            p.stats.budget = static_cast<size_t>(1e4 * d);
 
             ModularCMAES cma(p);
             cma.verbose = false;
@@ -78,7 +78,7 @@ int run_ioh()
 
 
 int main(int argc, char *argv[]){
-    const int f = argc < 2 ? 1 : std::stoi(argv[1]);
+    const int f = argc < 2 ? 5 : std::stoi(argv[1]);
     const int d = argc < 3 ? 5 : std::stoi(argv[2]);
     const int s = argc < 4 ? 1 : std::stoi(argv[3]);
 
@@ -96,7 +96,7 @@ int main(int argc, char *argv[]){
     // p.sampler = p.get_sampler(p.dim, p.mod, p.strat);
 
     p.stats.target = problem->objective().y + 1e-8;
-    p.stats.budget = 1e4 * d;
+    p.stats.budget = static_cast<size_t>(1e4 * d);
 
     ModularCMAES cma(p);
 

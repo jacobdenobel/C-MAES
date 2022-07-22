@@ -1,26 +1,29 @@
 #include "c++maes.hpp"
 
+
+
 void ModularCMAES::mutate(std::function<double(Vector)> objective)
 {
-	for (size_t i = 0; i < p.pop.Z.cols(); ++i)
+	const bool perform_tpa = p.stats.t != 0 and p.mod.ssa == parameters::StepSizeAdaptation::TPA;
+	const size_t n_offspring = p.pop.Z.cols() - (2 * perform_tpa);
+	
+	for (size_t i = 0; i < n_offspring; ++i)
 		p.pop.Z.col(i) = (*p.sampler)();
 
 	if (p.mod.threshold_convergence)
 		scale_with_threshold(p.pop.Z, p.strat.threshold(p.stats));
 
 	if (p.mod.ssa == parameters::StepSizeAdaptation::LPXNES or p.mod.sample_sigma)
-	{
 		p.pop.s = sampling::Random<std::lognormal_distribution<>>(p.strat.lambda,
 		                                                          std::lognormal_distribution<>(
 			                                                          std::log(p.dyn.sigma), p.strat.beta))();
-	}
 	else
-	{
-		p.pop.s = p.pop.s.Constant(p.pop.s.size(), p.dyn.sigma).eval();
-	}
+		p.pop.s = p.pop.s.Constant(p.pop.s.size(), p.dyn.sigma);
 
 	p.pop.Y = p.dyn.B * (p.dyn.d.asDiagonal() * p.pop.Z);
 	p.pop.X = (p.pop.Y * p.pop.s.asDiagonal()).colwise() + p.dyn.m;
+
+	p.strat.bounds->correct(p.pop.X, p.pop.Y, p.pop.s, p.dyn.m);
 
 	for (auto i = 0; i < p.pop.X.cols(); ++i)
 	{
@@ -28,6 +31,21 @@ void ModularCMAES::mutate(std::function<double(Vector)> objective)
 		p.stats.evaluations++;
 		if (sequential_break_conditions(i, p.pop.f(i)))
 			break;
+	}
+
+	if (perform_tpa) {
+		p.pop.Y.col(n_offspring) = p.dyn.dm;
+		p.pop.Y.col(n_offspring + 1) = -p.dyn.dm;
+		
+		for (auto i = n_offspring; i < n_offspring + 2; i++) {
+			p.pop.X.col(i) = p.dyn.m + (p.pop.s(i) * p.pop.Y.col(i));
+			p.pop.f(i) = objective(p.pop.X.col(i));
+			p.stats.evaluations++;
+		}
+		
+		p.dyn.rank_tpa = p.pop.f(n_offspring + 1) < p.pop.f(n_offspring) ? 
+			-p.strat.a_tpa : p.strat.a_tpa + p.strat.b_tpa;
+		
 	}
 }
 
@@ -74,7 +92,7 @@ void ModularCMAES::operator()(std::function<double(Vector)> objective)
 	while (step(objective))
 	{
 		if (p.stats.t % (p.dim * 2) == 0 and verbose)
-			std::cout << p.stats << std::endl;
+			std::cout << p.stats << " sigma: " << p.dyn.sigma << std::endl;
 	}
 	if (verbose)
 		std::cout << p.stats << std::endl;
@@ -102,3 +120,5 @@ void scale_with_threshold(Matrix& z, const double t)
 	const auto norm = z.colwise().norm().array().replicate(z.cols() - 1, 1);
 	z = (norm < t).select(z.array() * ((t + (t - norm)) / norm), z);
 }
+
+
