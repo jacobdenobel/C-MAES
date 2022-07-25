@@ -37,6 +37,7 @@ namespace restart {
 		if (termination_criteria(p)) {
 			restart(p);
 			setup(p.dim, p.strat.lambda, p.stats.t);
+			std::cout << "(mu, lambda, sigma): " << p.strat.mu << ", " << p.strat.lambda << ", " << p.dyn.sigma << std::endl;
 		}
 	}
 
@@ -82,7 +83,7 @@ namespace restart {
 	void BIPOP::restart(parameters::Parameters& p) {
 		static std::uniform_real_distribution<> dist;
 
-		const auto last_used_budget = used_budget - p.stats.evaluations;
+		const auto last_used_budget = p.stats.evaluations - used_budget;
 		used_budget += last_used_budget;
 		const auto remaining_budget = budget - used_budget;
 		
@@ -106,9 +107,14 @@ namespace restart {
 		if (lambda_small % 2 != 0)
 			lambda_small++;
 
-		p.strat.lambda = large() ? lambda_large : lambda_small;
-		p.dyn.sigma = large() ? 2. : 2e-2 * dist(rng::GENERATOR);
-		p.strat.mu = p.strat.lambda * mu_factor;
+		p.strat.lambda = std::max(size_t{ 2 }, large() ? lambda_large : lambda_small);
+		p.strat.mu = std::max(1.0, p.strat.lambda * mu_factor);
 		p.restart();
+		
+		p.dyn.sigma = large() ? 2. : 2e-2 * dist(rng::GENERATOR);
+		p.mutation_strategy->ss->sample(p.dyn.sigma, p.pop);
+		
+	
+		
 	}
 }

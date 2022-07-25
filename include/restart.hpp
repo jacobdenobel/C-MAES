@@ -45,7 +45,7 @@ namespace restart {
 			
 			// Stats
 			flat_fitnesses = Eigen::Array<int, Eigen::Dynamic, 1>::Constant(5, 0);
-
+			
 			median_fitnesses = std::vector<double>();
 			median_fitnesses.reserve(max_iter);
 
@@ -81,7 +81,8 @@ namespace restart {
 
 		BIPOP(const double d, const double lambda, const double mu, const size_t budget): 
 			Restart(d, lambda), lambda_init(static_cast<size_t>(lambda)), mu_factor(mu / lambda), budget(budget)
-		{}
+		{
+		}
 
 		void restart(parameters::Parameters&) override;
 

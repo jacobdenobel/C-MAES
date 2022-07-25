@@ -33,7 +33,7 @@ namespace parameters
         sampling::Mirror mirrored = sampling::Mirror::NONE;
         mutation::StepSizeAdaptation ssa = mutation::StepSizeAdaptation::CSA;
         bounds::CorrectionMethod bound_correction = bounds::CorrectionMethod::NONE;
-        restart::StrategyType local_restart = restart::StrategyType::IPOP;
+        restart::StrategyType local_restart = restart::StrategyType::BIPOP;
     };
 
     struct Stats
