@@ -7,7 +7,7 @@ namespace parameters
         : w(lambda), p(mu), n(lambda - mu)
     {
         const double d = static_cast<double>(dim);
-
+        using namespace mutation;
         switch (m.weights)
         {
         case RecombinationWeights::EQUAL:
@@ -28,29 +28,8 @@ namespace parameters
         c1 = 2.0 / (pow(d + 1.3, 2) + mueff);
         cmu = std::min(1.0 - c1, 2.0 * ((mueff - 2.0 + (1.0 / mueff)) / (pow(d + 2.0, 2) + (2.0 * mueff / 2))));
         cc = (4.0 + (mueff / d)) / (d + 4.0 + (2.0 * mueff / d));
-        
 
-        switch (m.ssa)
-        {
-        case StepSizeAdaptation::CSA:
-            cs = (mueff + 2.0) / (d + mueff + 5.0);
-            break;
-        case StepSizeAdaptation::XNES:
-            cs = mueff / (2.0 * std::log(std::max(2., d)) * sqrt(d));
-            break;
-        case StepSizeAdaptation::MXNES:
-            cs = 1.;
-            break;
-        case StepSizeAdaptation::LPXNES:
-            cs = 9.0 * mueff / (10.0 * sqrt(d));
-            break;
-        case StepSizeAdaptation::PSR:
-            cs = .9;
-            break;
-        default:
-            cs = .3;
-        }
-        damps = 1.0 + (2.0 * std::max(0.0, sqrt((mueff - 1.0) / (d + 1)) - 1) + cs);
+
         const double amu_neg = 1.0 + (c1 / static_cast<double>(mu));
         const double amueff_neg = 1.0 + ((2.0 * mueff_neg) / (mueff + 2.0));
         const double aposdef_neg = (1.0 - c1 - cmu) / (d * cmu);

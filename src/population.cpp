@@ -29,6 +29,20 @@ void Population::resize_cols(const size_t size)
     s.conservativeResize(n);
 }
 
+
+void Population::keep_only(const std::vector<size_t>& idx) {
+    X = X(Eigen::all, idx).eval();
+    Z = Z(Eigen::all, idx).eval();
+    Y = Y(Eigen::all, idx).eval();
+    f = f(idx).eval();
+    s = s(idx).eval();
+    n = idx.size();
+}
+
+size_t Population::n_finite() const {
+    return (f.array() != std::numeric_limits<double>::infinity()).cast<size_t>().sum();
+}
+
 std::ostream &operator<<(std::ostream &os, const Population &p)
 {
     os

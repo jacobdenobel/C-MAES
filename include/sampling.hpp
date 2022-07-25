@@ -8,6 +8,13 @@ double ppf(const double x);
 //! sobol.cpp
 void i8_sobol(int dim_num, long long int *seed, double quasi[]);
 
+
+namespace parameters {
+    struct Modules;
+    struct Strategy;
+}
+
+
 namespace sampling
 {
 
@@ -139,7 +146,7 @@ namespace sampling
 
         static std::pair<int, int> divmod(const double top, const double bottom);
 
-        static std::vector<int> sieve(const size_t n);
+        static std::vector<int> sieve(const int n);
     };
 
     /**
@@ -157,4 +164,25 @@ namespace sampling
     private:
         long long seed;
     };
+
+
+    enum class BaseSampler
+    {
+        GAUSSIAN,
+        SOBOL,
+        HALTON,
+        TESTER
+    };
+
+
+    enum class Mirror
+    {
+        NONE,
+        MIRRORED,
+        PAIRWISE
+    };
+  
+
+    std::shared_ptr<Sampler> get(const size_t dim, const parameters::Modules& mod, const parameters::Strategy& strat);
+    
 }

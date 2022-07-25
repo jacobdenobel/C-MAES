@@ -37,7 +37,7 @@ namespace bounds {
 	};
 
 	inline double modulo2(const int x) {
-		return static_cast<double>(x % 2);
+		return static_cast<double>((2 + (x % 2)) % 2);
 	};
 
 	struct COTN : BoundCorrection {
@@ -47,14 +47,14 @@ namespace bounds {
 
 		void correct(Matrix& X, Matrix& Y, const Vector& s, const Vector& m) override {
 			n_out_of_bounds = 0;
-
+			
 			for (auto i = 0; i < X.cols(); ++i) {
 				const auto oob = X.col(i).array() < lb.array() || X.col(i).array() > ub.array();
-				n_out_of_bounds += oob.any();
 				if (oob.any()) {
-					X.col(i) = (oob).select((X.col(i) - lb).cwiseQuotient(db), X.col(i));
+					n_out_of_bounds++;
+					const Vector y = (oob).select((X.col(i) - lb).cwiseQuotient(db), X.col(i));
 					X.col(i) = (oob).select(
-						lb.array() + db.array() * ((X.col(i).array() > 0).cast<double>() - sampler().array()).abs(), X.col(i)
+						lb.array() + db.array() * ((y.array() > 0).cast<double>() - sampler().array().abs()).abs(), y
 					);
 					Y.col(i) = (X.col(i) - m) / s(i);
 				}				
@@ -70,11 +70,12 @@ namespace bounds {
 
 			for (auto i = 0; i < X.cols(); ++i) {
 				const auto oob = X.col(i).array() < lb.array() || X.col(i).array() > ub.array();
-				n_out_of_bounds += oob.any();
 				if (oob.any()) {
-					X.col(i) = (oob).select((X.col(i) - lb).cwiseQuotient(db), X.col(i));
+					n_out_of_bounds++;
+					const Vector y = (oob).select((X.col(i) - lb).cwiseQuotient(db), X.col(i));
 					X.col(i) = (oob).select(
-						lb.array() + (db.array() * (X.col(i).array() - X.col(i).array().floor() - X.col(i).array().unaryExpr(&modulo2)).abs()), X.col(i)
+						lb.array() + db.array() * (y.array() - y.array().floor() - y.array().floor().unaryExpr(&modulo2)).abs(),
+						y
 					);
 					Y.col(i) = (X.col(i) - m) / s(i);
 				}
@@ -92,8 +93,8 @@ namespace bounds {
 
 			for (auto i = 0; i < X.cols(); ++i) {
 				const auto oob = X.col(i).array() < lb.array() || X.col(i).array() > ub.array();
-				n_out_of_bounds += oob.any();
 				if (oob.any()) {
+					n_out_of_bounds++;
 					X.col(i) = (oob).select(lb + sampler().cwiseProduct(db), X.col(i));
 					Y.col(i) = (X.col(i) - m) / s(i);
 				}
@@ -109,11 +110,11 @@ namespace bounds {
 
 			for (auto i = 0; i < X.cols(); ++i) {
 				const auto oob = X.col(i).array() < lb.array() || X.col(i).array() > ub.array();
-				n_out_of_bounds += oob.any();
 				if (oob.any()) {
-					X.col(i) = (oob).select((X.col(i) - lb).cwiseQuotient(db), X.col(i));
+					n_out_of_bounds++;
+					const Vector y = (oob).select((X.col(i) - lb).cwiseQuotient(db), X.col(i));
 					X.col(i) = (oob).select(
-						lb.array() + db.array() * (X.col(i).array() > 0).cast<double>(), X.col(i)
+						lb.array() + db.array() * (y.array() > 0).cast<double>(), y
 					);
 					Y.col(i) = (X.col(i) - m) / s(i);
 				}
@@ -129,11 +130,11 @@ namespace bounds {
 
 			for (auto i = 0; i < X.cols(); ++i) {
 				const auto oob = X.col(i).array() < lb.array() || X.col(i).array() > ub.array();
-				n_out_of_bounds += oob.any();
 				if (oob.any()) {
-					X.col(i) = (oob).select((X.col(i) - lb).cwiseQuotient(db), X.col(i));
+					n_out_of_bounds++;
+					const Vector y = (oob).select((X.col(i) - lb).cwiseQuotient(db), X.col(i));
 					X.col(i) = (oob).select(
-						lb.array() + db.array() * (X.col(i).array() - X.col(i).array().floor()).abs(), X.col(i)
+						lb.array() + db.array() * (y.array() - y.array().floor()).abs(), y
 					);
 					Y.col(i) = (X.col(i) - m) / s(i);
 				}
@@ -149,8 +150,7 @@ namespace bounds {
 	inline std::shared_ptr<BoundCorrection> get(const size_t dim, const CorrectionMethod& m) {
 		switch (m)
 		{
-		case CorrectionMethod::NONE:
-			return std::make_shared<NoCorrection>(dim);
+	
 		case CorrectionMethod::COUNT:
 			return std::make_shared<CountOutOfBounds>(dim);
 		case CorrectionMethod::MIRROR:
@@ -163,6 +163,10 @@ namespace bounds {
 			return std::make_shared<Saturate>(dim);
 		case CorrectionMethod::TOROIDAL:
 			return std::make_shared<Toroidal>(dim);
+		
+		default:
+		case CorrectionMethod::NONE:
+			return std::make_shared<NoCorrection>(dim);
 		}
 	};
 }

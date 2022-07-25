@@ -1,77 +1,6 @@
 #include "c++maes.hpp"
 
 
-
-void ModularCMAES::mutate(std::function<double(Vector)> objective)
-{
-	const bool perform_tpa = p.stats.t != 0 and p.mod.ssa == parameters::StepSizeAdaptation::TPA;
-	const size_t n_offspring = p.pop.Z.cols() - (2 * perform_tpa);
-	
-	for (size_t i = 0; i < n_offspring; ++i)
-		p.pop.Z.col(i) = (*p.sampler)();
-
-	if (p.mod.threshold_convergence)
-		scale_with_threshold(p.pop.Z, p.strat.threshold(p.stats));
-
-	if (p.mod.ssa == parameters::StepSizeAdaptation::LPXNES or p.mod.sample_sigma)
-		p.pop.s = sampling::Random<std::lognormal_distribution<>>(p.strat.lambda,
-		                                                          std::lognormal_distribution<>(
-			                                                          std::log(p.dyn.sigma), p.strat.beta))();
-	else
-		p.pop.s = p.pop.s.Constant(p.pop.s.size(), p.dyn.sigma);
-
-	p.pop.Y = p.dyn.B * (p.dyn.d.asDiagonal() * p.pop.Z);
-	p.pop.X = (p.pop.Y * p.pop.s.asDiagonal()).colwise() + p.dyn.m;
-
-	p.strat.bounds->correct(p.pop.X, p.pop.Y, p.pop.s, p.dyn.m);
-
-	for (auto i = 0; i < p.pop.X.cols(); ++i)
-	{
-		p.pop.f(i) = objective(p.pop.X.col(i));
-		p.stats.evaluations++;
-		if (sequential_break_conditions(i, p.pop.f(i)))
-			break;
-	}
-
-	if (perform_tpa) {
-		p.pop.Y.col(n_offspring) = p.dyn.dm;
-		p.pop.Y.col(n_offspring + 1) = -p.dyn.dm;
-		
-		for (auto i = n_offspring; i < n_offspring + 2; i++) {
-			p.pop.X.col(i) = p.dyn.m + (p.pop.s(i) * p.pop.Y.col(i));
-			p.pop.f(i) = objective(p.pop.X.col(i));
-			p.stats.evaluations++;
-		}
-		
-		p.dyn.rank_tpa = p.pop.f(n_offspring + 1) < p.pop.f(n_offspring) ? 
-			-p.strat.a_tpa : p.strat.a_tpa + p.strat.b_tpa;
-		
-	}
-}
-
-void ModularCMAES::select()
-{
-	if (p.mod.mirrored == parameters::Mirrored::PAIRWISE)
-	{
-		assert(p.pop.f.size() % 2 == 0);
-		std::vector<int> idx;
-		for (auto i = 0, j = 0; i < p.pop.f.size(); i += 2)
-			idx[++j] = i + (1 * (p.pop.f(i) > p.pop.f(i + 1)));
-	}
-
-	if (p.mod.elitist and p.stats.t != 0)
-		p.pop += p.old_pop;
-
-	p.pop.sort();
-	p.pop.resize_cols(p.strat.lambda);
-
-	if (p.pop.f(0) < p.stats.fopt)
-	{
-		p.stats.fopt = p.pop.f(0);
-		p.stats.xopt = p.pop.X(Eigen::all, 0);
-	}
-}
-
 void ModularCMAES::recombine()
 {
 	p.dyn.m_old = p.dyn.m;
@@ -80,8 +9,8 @@ void ModularCMAES::recombine()
 
 bool ModularCMAES::step(std::function<double(Vector)> objective)
 {
-	mutate(objective);
-	select();
+	p.mutation_strategy->mutate(objective, p.pop.Z.cols(), p);
+	p.selection_strategy->select(p);
 	recombine();
 	p.adapt();
 	return !break_conditions();
@@ -98,14 +27,6 @@ void ModularCMAES::operator()(std::function<double(Vector)> objective)
 		std::cout << p.stats << std::endl;
 }
 
-bool ModularCMAES::sequential_break_conditions(const size_t i, const double f) const
-{
-	if (p.mod.sequential_selection)
-		return f < p.stats.fopt and i >= p.strat.seq_cutoff and (p.mod.mirrored != parameters::Mirrored::PAIRWISE or i %
-			2 == 0);
-	return false;
-}
-
 bool ModularCMAES::break_conditions() const
 {
 	const auto target_reached = p.stats.target >= p.stats.fopt;
@@ -114,11 +35,4 @@ bool ModularCMAES::break_conditions() const
 
 	return exceed_gens or target_reached or budget_used_up;
 }
-
-void scale_with_threshold(Matrix& z, const double t)
-{
-	const auto norm = z.colwise().norm().array().replicate(z.cols() - 1, 1);
-	z = (norm < t).select(z.array() * ((t + (t - norm)) / norm), z);
-}
-
 

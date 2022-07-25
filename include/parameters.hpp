@@ -3,37 +3,14 @@
 #include "population.hpp"
 #include "sampling.hpp"
 #include "bounds.hpp"
+#include "mutation.hpp"
+#include "selection.hpp"
+#include "restart.hpp"
 
 using size_to = std::optional<size_t>;
 
 namespace parameters
 {
-
-    enum class BaseSampler
-    {
-        GAUSSIAN,
-        SOBOL,
-        HALTON,
-        TESTER
-    };
-
-    enum class Mirrored
-    {
-        NONE,
-        MIRRORED,
-        PAIRWISE
-    };
-
-    enum class StepSizeAdaptation
-    {
-        CSA,
-        TPA,
-        MSR,
-        XNES,
-        MXNES,
-        LPXNES,
-        PSR
-    };
 
     enum class RecombinationWeights
     {
@@ -52,10 +29,11 @@ namespace parameters
         bool threshold_convergence = false;
         bool sample_sigma = false;
         RecombinationWeights weights = RecombinationWeights::DEFAULT;
-        BaseSampler sampler = BaseSampler::GAUSSIAN;
-        Mirrored mirrored = Mirrored::NONE;
-        StepSizeAdaptation ssa = StepSizeAdaptation::CSA;
-        bounds::CorrectionMethod bound_correction = bounds::CorrectionMethod::MIRROR;
+        sampling::BaseSampler sampler = sampling::BaseSampler::GAUSSIAN;
+        sampling::Mirror mirrored = sampling::Mirror::NONE;
+        mutation::StepSizeAdaptation ssa = mutation::StepSizeAdaptation::CSA;
+        bounds::CorrectionMethod bound_correction = bounds::CorrectionMethod::NONE;
+        restart::StrategyType local_restart = restart::StrategyType::IPOP;
     };
 
     struct Stats
@@ -73,20 +51,11 @@ namespace parameters
     {
         size_t lambda;
         size_t mu;
-        double seq_cutoff_factor = 1.;
-        size_t seq_cutoff;
-        std::shared_ptr<bounds::BoundCorrection> bounds;
-        
-        double init_threshold = 0.1;
-        double decay_factor = 0.995;
-        double succes_ratio = .25;
-        double a_tpa = 0.5;
-        double b_tpa = 0.0;
-        double beta;
 
+        std::shared_ptr<bounds::BoundCorrection> bounds;
+    
         Strategy(const size_t dim, const Modules &mod, const size_to l = std::nullopt, const size_to m = std::nullopt);
 
-        [[nodiscard]] double threshold(const Stats &s) const;
     };
 
     struct Weights
@@ -96,8 +65,7 @@ namespace parameters
         Vector n;
 
         double mueff, mueff_neg;
-        double c1, cmu, cc, cs;
-        double damps;
+        double c1, cmu, cc;
 
         Weights(const size_t dim, const size_t mu, const size_t lambda, const Modules &m);
 
@@ -120,22 +88,17 @@ namespace parameters
         double chiN;
         double sigma = .5;
         double s = 0;
-        double rank_tpa = 0.0;
         bool hs = true;
 
         Dynamic(const size_t dim);
 
-        void adapt_evolution_paths(const Weights &w, const Stats &stats, const Strategy &strat);
-
-        void adapt_sigma(const Weights &w, const Modules &m, const Population &pop, const Population &old_pop, const Stats &stats, const Strategy &strat);
+        void adapt_evolution_paths(const Weights &w, const std::shared_ptr<mutation::Strategy>& mutation_strategy, const Stats& stats, const Strategy& strat);
 
         void adapt_covariance_matrix(const Weights &w, const Modules &m, const Population &pop, const Strategy &strat);
 
         void restart();
 
-        void perform_eigendecomposition(const Stats &stats);
-
-        void adapt(const Weights &w, const Stats &stats, const Strategy &strat, const Modules &m, const Population &pop, const Population &old_pop);
+        bool perform_eigendecomposition(const Stats &stats);
     };
 
     struct Parameters
@@ -144,9 +107,13 @@ namespace parameters
         Modules mod;
         Dynamic dyn;
         Stats stats;
-        Strategy strat;
+        Strategy strat;        
         Weights weights;
+
         std::shared_ptr<sampling::Sampler> sampler;
+        std::shared_ptr<mutation::Strategy> mutation_strategy;
+        std::shared_ptr<selection::Strategy> selection_strategy;
+        std::shared_ptr<restart::Strategy> restart_strategy;
 
         Population pop;
         Population old_pop;
@@ -155,7 +122,7 @@ namespace parameters
 
         void adapt();
 
-        static std::shared_ptr<sampling::Sampler> get_sampler(const size_t dim, const Modules &mod, const Strategy &strat);
+        void restart();
     };
 }
 
