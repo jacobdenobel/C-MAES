@@ -10,6 +10,7 @@ namespace parameters {
     struct Weights;
     struct Dynamic;
     struct Strategy;
+    struct Modules;
 }
 
 namespace bounds {
@@ -87,22 +88,33 @@ namespace mutation {
         std::shared_ptr<SequentialSelection> sq;
         std::shared_ptr<SigmaSampler> ss;
         double cs;
+        double sigma0;
+        double sigma;
+        double s = 0;
 
         Strategy(
                 const std::shared_ptr<ThresholdConvergence>& threshold_covergence,
                 const std::shared_ptr<SequentialSelection>& sequential_selection,
                 const std::shared_ptr<SigmaSampler>& sigma_sampler,
-                const double cs
+                const double cs, const double sigma0
             ): 
-            tc(threshold_covergence), sq(sequential_selection), ss(sigma_sampler), cs(cs) {}
+            tc(threshold_covergence), sq(sequential_selection), ss(sigma_sampler), cs(cs), sigma0(sigma0), sigma(sigma0) {}
 
         virtual void mutate(std::function<double(Vector)> objective, const size_t n_offspring, parameters::Parameters& p) = 0;
         
         virtual void adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dyn, Population& pop,
             const Population& old_pop, const parameters::Stats& stats, const parameters::Strategy& strat) = 0;
 
+        //! Calls adapt_sigma and then ss->sample(pop);
         void adapt(const parameters::Weights& w, parameters::Dynamic& dyn, Population& pop,
-            const Population& old_pop, const parameters::Stats& stats, const parameters::Strategy& strat);
+            const Population& old_pop, const parameters::Stats& stats, const parameters::Strategy& strat) {
+            adapt_sigma(w, dyn, pop, old_pop, stats, strat);
+            sample_sigma(pop);
+        }
+
+        void sample_sigma(Population& pop) const {
+            ss->sample(sigma, pop);
+        }
     };
 
     struct CSA: Strategy {
@@ -111,8 +123,8 @@ namespace mutation {
         CSA(const std::shared_ptr<ThresholdConvergence>& threshold_covergence,
             const std::shared_ptr<SequentialSelection>& sequential_selection,
             const std::shared_ptr<SigmaSampler>& sigma_sampler,
-            const double cs, const double damps
-        ): Strategy(threshold_covergence, sequential_selection, sigma_sampler, cs), damps(damps) {}
+            const double cs, const double damps, const double sigma0
+        ): Strategy(threshold_covergence, sequential_selection, sigma_sampler, cs, sigma0), damps(damps) {}
         
         void mutate(std::function<double(Vector)> objective, const size_t n_offspring, parameters::Parameters& p) override;
 
@@ -171,47 +183,7 @@ namespace mutation {
             const Population& old_pop, const parameters::Stats& stats, const parameters::Strategy& strat) override;
     };
 
-    inline std::shared_ptr<Strategy> get(const StepSizeAdaptation& ssa,  
-         const bool threshold_convergence, const bool sequential_selection, const bool sample_sigma,
-         const sampling::Mirror& m, const size_t mu, const double mueff, 
-         const double d
-    ) {
-        
-        auto& tc = threshold_convergence ? std::make_shared<ThresholdConvergence>()
-            : std::make_shared<NoThresholdConvergence>();
-       
-        auto& sq = sequential_selection ? std::make_shared<SequentialSelection>(m, mu) :
-            std::make_shared<NoSequentialSelection>(m, mu);
-        
-        auto& ss = (sample_sigma or ssa == StepSizeAdaptation::LPXNES) ? 
-            std::make_shared<SigmaSampler>(d) 
-            : std::make_shared<NoSigmaSampler>(d);
-        
-        double cs = 0.3;
-        switch (ssa)
-        {
-        case StepSizeAdaptation::TPA:
-            return std::make_shared<TPA>(tc, sq, ss, cs, 0.0);
-        case StepSizeAdaptation::MSR:
-            return std::make_shared<MSR>(tc, sq, ss, cs, 0.0);
-        case StepSizeAdaptation::XNES:
-            cs = mueff / (2.0 * std::log(std::max(2., d)) * sqrt(d));
-            return std::make_shared<XNES>(tc, sq, ss, cs, 0.0);
-        case StepSizeAdaptation::MXNES:
-            cs = 1.;
-            return std::make_shared<MXNES>(tc, sq, ss, cs, 0.0);
-        case StepSizeAdaptation::LPXNES:
-            cs = 9.0 * mueff / (10.0 * sqrt(d));
-            return std::make_shared<LPXNES>(tc, sq, ss, cs, 0.0);
-        case StepSizeAdaptation::PSR:
-            cs = .9;
-            return std::make_shared<PSR>(tc, sq, ss, cs, 0.0);
-        default:
-        case StepSizeAdaptation::CSA:
-            cs = (mueff + 2.0) / (d + mueff + 5.0);
-            return std::make_shared<CSA>(tc, sq, ss, cs,
-                1.0 + (2.0 * std::max(0.0, sqrt((mueff - 1.0) / (d + 1)) - 1) + cs)
-            );
-        }     
-    }
+    std::shared_ptr<Strategy> get(const parameters::Modules& m, const size_t mu,
+        const double mueff, const double d, const double sigma);
+             
 }

@@ -5,7 +5,6 @@
 struct ModularCMAES
 {
     parameters::Parameters p;
-    bool verbose = true;
 
     ModularCMAES(const parameters::Parameters &p) : p(p) {}
 

@@ -33,7 +33,7 @@ namespace parameters
         sampling::Mirror mirrored = sampling::Mirror::NONE;
         mutation::StepSizeAdaptation ssa = mutation::StepSizeAdaptation::CSA;
         bounds::CorrectionMethod bound_correction = bounds::CorrectionMethod::NONE;
-        restart::StrategyType local_restart = restart::StrategyType::BIPOP;
+        restart::StrategyType restart_strategy = restart::StrategyType::NONE;
     };
 
     struct Stats
@@ -86,8 +86,6 @@ namespace parameters
         Matrix inv_root_C;
         double dd;
         double chiN;
-        double sigma = .5;
-        double s = 0;
         bool hs = true;
 
         Dynamic(const size_t dim);
@@ -95,8 +93,6 @@ namespace parameters
         void adapt_evolution_paths(const Weights &w, const std::shared_ptr<mutation::Strategy>& mutation_strategy, const Stats& stats, const Strategy& strat);
 
         void adapt_covariance_matrix(const Weights &w, const Modules &m, const Population &pop, const Strategy &strat);
-
-        void restart();
 
         bool perform_eigendecomposition(const Stats &stats);
     };
@@ -110,19 +106,23 @@ namespace parameters
         Strategy strat;        
         Weights weights;
 
+        Population pop;
+        Population old_pop;
+
         std::shared_ptr<sampling::Sampler> sampler;
         std::shared_ptr<mutation::Strategy> mutation_strategy;
         std::shared_ptr<selection::Strategy> selection_strategy;
         std::shared_ptr<restart::Strategy> restart_strategy;
 
-        Population pop;
-        Population old_pop;
+      
+        bool verbose = true;
 
         Parameters(const size_t dim);
+        Parameters(const size_t dim, const Modules& m);
 
         void adapt();
 
-        void restart();
+        void restart(const std::optional<double>& sigma = std::nullopt);
     };
 }
 

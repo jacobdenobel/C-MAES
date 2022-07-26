@@ -13,7 +13,7 @@ namespace parameters
 
     void Dynamic::adapt_evolution_paths(const Weights& w, const std::shared_ptr<mutation::Strategy>& mutation_strategy, const Stats& stats, const Strategy& strat)
     {
-        dm = (m - m_old) / sigma;
+        dm = (m - m_old) / mutation_strategy->sigma;
         ps = (1.0 - mutation_strategy->cs) * ps + (sqrt(mutation_strategy->cs * (2.0 - mutation_strategy->cs) * w.mueff) * inv_root_C * dm);
 
         const double actual_ps_length = ps.norm() / sqrt(1.0 - pow(1.0 - mutation_strategy->cs, 2.0 * (stats.evaluations / strat.lambda)));
@@ -49,21 +49,6 @@ namespace parameters
             C.triangularView<Eigen::StrictlyUpper>().toDenseMatrix().transpose();
     }
 
-    void Dynamic::restart()
-    {
-        auto dim = C.cols();
-        B = Matrix::Identity(dim, dim);
-        C = Matrix::Identity(dim, dim);
-        inv_root_C = Matrix::Identity(dim, dim);
-        d.setOnes();
-        m = Vector::Random(dim) * 5;
-        m_old.setZero();
-        dm.setZero();
-        pc.setZero();
-        ps.setZero();
-        sigma = .5;
-        s = 0;
-    }
 
     bool Dynamic::perform_eigendecomposition(const Stats &stats)
     {

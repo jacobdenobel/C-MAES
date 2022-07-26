@@ -44,17 +44,17 @@ struct ioh_function {
 
 
 
-int run_ioh()
+int run_ioh(const int d, const parameters::Modules& m)
 {
-    const size_t d = 5;
-    // const int f = 3;
-    const size_t reps = 10;
-
+    const size_t reps = 50;
+    std::cout << d << std::endl;
     auto& factory = ioh::problem::ProblemRegistry<ioh::problem::Real>::instance();
     auto logger = ioh::logger::Analyzer();
     
+    ioh::suite::BBOB suite{ {1}, {1}, {d} };
     
-    ioh::suite::BBOB suite;
+    using namespace std::chrono;
+    auto start = high_resolution_clock::now();
 
     for (const auto& problem: suite){
         problem->attach_logger(logger);
@@ -62,17 +62,19 @@ int run_ioh()
         std::cout << *problem << std::endl;
 
         for (size_t i = 0; i < reps; ++i){
-            parameters::Parameters p(d);
+            parameters::Parameters p(d, m);
             p.stats.target = problem->objective().y + 1e-8;
             p.stats.budget = static_cast<size_t>(1e4 * d);
-
+            p.verbose = false;
             ModularCMAES cma(p);
-            cma.verbose = false;
+         
             cma(ioh_function(problem));
             std::cout << (*problem).state() << std::endl;
             problem->reset();
         }
     }
+    auto duration = duration_cast<milliseconds>(high_resolution_clock::now() - start);
+    std::cout << "Time elapsed: " << duration.count() / 1000.0 << std::endl;
     return 0;
 }
 
@@ -81,22 +83,37 @@ int main(int argc, char *argv[]){
     const int f = argc < 2 ? 5 : std::stoi(argv[1]);
     const int d = argc < 3 ? 5 : std::stoi(argv[2]);
     const int s = argc < 4 ? 1 : std::stoi(argv[3]);
+    const bool v = static_cast<bool>(argc < 5 ? 0 : std::stoi(argv[4]));
+    
+
+    parameters::Modules m;
+
+    m.elitist = false;
+    m.active = false;
+    m.orthogonal = false;
+    m.sequential_selection = false;
+    m.threshold_convergence = false;
+    m.sample_sigma = false;
+    m.weights = parameters::RecombinationWeights::DEFAULT;
+    m.sampler = sampling::BaseSampler::GAUSSIAN;
+    m.mirrored = sampling::Mirror::NONE;
+    m.ssa = mutation::StepSizeAdaptation::CSA;
+    m.bound_correction = bounds::CorrectionMethod::NONE;
+    m.restart_strategy = restart::StrategyType::NONE;
+
 
     rng::set_seed(s);
     if (f == 0)
-        return run_ioh();
+        return run_ioh(d, m);
 
     auto& factory = ioh::problem::ProblemRegistry<ioh::problem::Real>::instance();
     auto problem = factory.create(f, 1, d);
     std::cout << (*problem) << std::endl;
 
-    parameters::Parameters p(d);
-    p.dyn.m = (*p.sampler)();
-    // p.mod.sampler = parameters::BaseSampler::GAUSSIAN;
-    // p.sampler = p.get_sampler(p.dim, p.mod, p.strat);
-
+    parameters::Parameters p(d, m);
     p.stats.target = problem->objective().y + 1e-8;
     p.stats.budget = static_cast<size_t>(1e4 * d);
+    p.verbose = v;
 
     ModularCMAES cma(p);
 
@@ -104,10 +121,10 @@ int main(int argc, char *argv[]){
     auto start = high_resolution_clock::now();
     
     cma(ioh_function(problem));
-    // cma(&sphere);
-
+    
     auto duration = duration_cast<milliseconds>(high_resolution_clock::now() - start);
     std::cout << "Time elapsed: " << duration.count() / 1000.0 << std::endl;
     std::cout << "Time elapsed (per iter): " << (static_cast<double>(duration.count()) / cma.p.stats.t) / 1000.0 << std::endl;
+    std::cout << problem->state() << std::endl;
 }    
     

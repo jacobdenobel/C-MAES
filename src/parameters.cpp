@@ -14,40 +14,56 @@ namespace parameters
     }
 
 
-    Parameters::Parameters(const size_t dim) : dim(dim), dyn(dim), strat(dim, mod),
+    Parameters::Parameters(const size_t dim, const Modules& m) : 
+        dim(dim), mod(m), dyn(dim), strat(dim, mod),
         weights(dim, strat.mu, strat.lambda, mod),
+        pop(dim, strat.lambda),
+        old_pop(dim, strat.lambda),        
         sampler(sampling::get(dim, mod, strat)),
-        mutation_strategy(mutation::get(mod.ssa,
-            mod.threshold_convergence, mod.sequential_selection,
-            mod.sample_sigma, mod.mirrored, strat.mu, weights.mueff,
-            static_cast<double>(dim))
-        ),
+        mutation_strategy(mutation::get(mod,           
+            strat.mu, weights.mueff,
+            static_cast<double>(dim),
+            .5 // sigma
+        )),
         selection_strategy(std::make_shared<selection::Strategy>(mod)),
-        restart_strategy(restart::get(mod.local_restart, 
+        restart_strategy(restart::get(mod.restart_strategy, 
             static_cast<double>(dim), 
             static_cast<double>(strat.lambda), 
             static_cast<double>(strat.mu), 
             stats.budget)
-        ),
-        pop(dim, strat.lambda), old_pop(dim, strat.lambda)
+        )
     {
         // Ensure proper initialization of pop.s
-        mutation_strategy->ss->sample(dyn.sigma, pop);
+        mutation_strategy->sample_sigma(pop);
+
     }
+
+    Parameters::Parameters(const size_t dim) : Parameters(dim, {}) {}
         
-    void Parameters::restart() {
+    void Parameters::restart(const std::optional<double>& sigma) {
         weights = Weights(dim, strat.mu, strat.lambda, mod);
         sampler = sampling::get(dim, mod, strat);
-        mutation_strategy = mutation::get(mod.ssa,
-            mod.threshold_convergence, mod.sequential_selection,
-            mod.sample_sigma, mod.mirrored, strat.mu, weights.mueff,
-            static_cast<double>(dim)
-        );
-        pop = Population(dim, strat.lambda);
+
+        pop = Population(dim, strat.lambda); 
         old_pop = Population(dim, strat.lambda);
 
-        dyn.restart();
-        mutation_strategy->ss->sample(dyn.sigma, pop);
+        mutation_strategy = mutation::get(mod, strat.mu, weights.mueff,
+            static_cast<double>(dim), 
+            sigma.value_or(mutation_strategy->sigma0)
+        );
+        
+        mutation_strategy->sample_sigma(pop);
+        
+        dyn.B = Matrix::Identity(dim, dim);
+        dyn.C = Matrix::Identity(dim, dim);
+        dyn.inv_root_C = Matrix::Identity(dim, dim);
+        dyn.d.setOnes();
+        dyn.m = Vector::Random(dim) * 5;
+        dyn.m_old.setZero();
+        dyn.dm.setZero();
+        dyn.pc.setZero();
+        dyn.ps.setZero();
+
     }
 
     void Parameters::adapt()
@@ -59,9 +75,10 @@ namespace parameters
         
         if (!dyn.perform_eigendecomposition(stats))
             restart();
-
-        (*restart_strategy)(*this);
+        
         old_pop = pop;
+        restart_strategy->evaluate(*this);
+        
         stats.t++;
     }   
 }

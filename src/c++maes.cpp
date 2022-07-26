@@ -20,10 +20,11 @@ void ModularCMAES::operator()(std::function<double(Vector)> objective)
 {
 	while (step(objective))
 	{
-		if (p.stats.t % (p.dim * 2) == 0 and verbose)
-			std::cout << p.stats << " sigma: " << p.dyn.sigma << std::endl;
+		if (p.stats.t % (p.dim * 2) == 0 and p.verbose)
+			std::cout << p.stats << " (mu, lambda, sigma): " << p.strat.mu
+					  << ", " << p.strat.lambda << ", " << p.mutation_strategy->sigma << std::endl;
 	}
-	if (verbose)
+	if (p.verbose)
 		std::cout << p.stats << std::endl;
 }
 

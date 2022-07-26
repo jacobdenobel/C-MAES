@@ -13,11 +13,11 @@ namespace restart {
 	};
 	 
 	struct Strategy {
-		virtual void operator()(parameters::Parameters&) = 0;
+		virtual void evaluate(parameters::Parameters&) = 0;
 	};
 
 	struct None : Strategy {
-		void operator()(parameters::Parameters&) override {}
+		void evaluate(parameters::Parameters&) override {}
 	};
 
 	struct Restart : Strategy {
@@ -53,7 +53,7 @@ namespace restart {
 			best_fitnesses.reserve(max_iter);
 		}
 
-		void operator()(parameters::Parameters& p) override;
+		void evaluate(parameters::Parameters& p) override;
 
 		bool termination_criteria(const parameters::Parameters&) const;
 		virtual void restart(parameters::Parameters&);

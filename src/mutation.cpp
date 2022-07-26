@@ -16,16 +16,9 @@ namespace mutation {
         return (f < fopt) and (i >= seq_cutoff) and (m != sampling::Mirror::PAIRWISE or i % 2 == 0);
     }
 
-    void Strategy::adapt(const parameters::Weights& w, parameters::Dynamic& dyn, Population& pop,
-        const Population& old_pop, const parameters::Stats& stats, const parameters::Strategy& strat)
-    {
-        adapt_sigma(w, dyn, pop, old_pop, stats, strat);
-        ss->sample(dyn.sigma, pop);
-    }   
-
     void CSA::adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dyn, Population& pop,
         const Population& old_pop, const parameters::Stats& stats, const parameters::Strategy& strat) {
-        dyn.sigma *= std::exp((cs / damps) * ((dyn.ps.norm() / dyn.chiN) - 1));
+        sigma *= std::exp((cs / damps) * ((dyn.ps.norm() / dyn.chiN) - 1));
     }
     
     void CSA::mutate(std::function<double(Vector)> objective, const size_t n_offspring, parameters::Parameters& p) {
@@ -72,8 +65,8 @@ namespace mutation {
 
     void TPA::adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dyn, Population& pop,
         const Population& old_pop, const parameters::Stats& stats, const parameters::Strategy& strat) {
-        dyn.s = ((1.0 - cs) * dyn.s) + (cs * rank_tpa);
-        dyn.sigma *= std::exp(dyn.s);
+        s = ((1.0 - cs) * s) + (cs * rank_tpa);
+        sigma *= std::exp(s);
     }
 
     //! Assumes the vector to be arready sorted
@@ -91,8 +84,8 @@ namespace mutation {
             const double lambda = static_cast<double>(strat.lambda);
             const double k = (pop.f.array() < median(old_pop.f)).cast<double>().sum();
             const auto z = (2.0 / lambda) * (k - ((lambda + 1.0) / 2.0));
-            dyn.s = ((1.0 - cs) * dyn.s) + (cs * z);
-            dyn.sigma *= std::exp(dyn.s / (2.0 - (2.0 / dyn.dd)));
+            s = ((1.0 - cs) * s) + (cs * z);
+            sigma *= std::exp(s / (2.0 - (2.0 / dyn.dd)));
         }
     }
 
@@ -123,8 +116,8 @@ namespace mutation {
             auto r_old = searchsorted(old_pop.f.head(n), combined);
             const auto z = (r_old - r).sum() / std::pow(n, 2) - succes_ratio;
 
-            dyn.s = (1.0 - cs) * dyn.s + (cs * z);
-            dyn.sigma *= std::exp(dyn.s / (2.0 - (2.0 / dyn.dd)));
+            s = (1.0 - cs) * s + (cs * z);
+            sigma *= std::exp(s / (2.0 - (2.0 / dyn.dd)));
         }
     }
 
@@ -132,20 +125,62 @@ namespace mutation {
         const Population& old_pop, const parameters::Stats& stats, const parameters::Strategy& strat) {
         
         const double z = ((dyn.inv_root_C * pop.Y).colwise().norm().array().pow(2.) - dyn.dd).matrix() * w.clipped();
-        dyn.sigma *= std::exp((cs / std::sqrt(dyn.dd)) * z);
+        sigma *= std::exp((cs / std::sqrt(dyn.dd)) * z);
     }
     void MXNES::adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dyn, Population& pop,
         const Population& old_pop, const parameters::Stats& stats, const parameters::Strategy& strat) {
         if (stats.t != 0)
         {
             const auto z = (w.mueff * std::pow((dyn.inv_root_C * dyn.dm).norm(), 2)) - dyn.dd;
-            dyn.sigma *= std::exp((cs / dyn.dd) * z);
+            sigma *= std::exp((cs / dyn.dd) * z);
         }
     }
     void LPXNES::adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dyn, Population& pop,
         const Population& old_pop, const parameters::Stats& stats, const parameters::Strategy& strat) {
         const auto z = std::exp(cs * pop.s.array().log().matrix().dot(w.clipped()));
-        dyn.sigma = std::pow(dyn.sigma, 1.0 - cs) * z;
+        sigma = std::pow(sigma, 1.0 - cs) * z;
     }
+
+
+    std::shared_ptr<Strategy> get(const parameters::Modules& m, const size_t mu, const double mueff, const double d, const double sigma) {
+
+        auto& tc = m.threshold_convergence ? std::make_shared<ThresholdConvergence>()
+            : std::make_shared<NoThresholdConvergence>();
+
+        auto& sq = m.sequential_selection ? std::make_shared<SequentialSelection>(m.mirrored, mu) :
+            std::make_shared<NoSequentialSelection>(m.mirrored, mu);
+
+        auto& ss = (m.sample_sigma or m.ssa == StepSizeAdaptation::LPXNES) ?
+            std::make_shared<SigmaSampler>(d)
+            : std::make_shared<NoSigmaSampler>(d);
+
+        double cs = 0.3;
+        double damps = 0.0;
+
+        switch (m.ssa)
+        {
+        case StepSizeAdaptation::TPA:
+            return std::make_shared<TPA>(tc, sq, ss, cs, damps, sigma);
+        case StepSizeAdaptation::MSR:
+            return std::make_shared<MSR>(tc, sq, ss, cs, damps, sigma);
+        case StepSizeAdaptation::XNES:
+            cs = mueff / (2.0 * std::log(std::max(2., d)) * sqrt(d));
+            return std::make_shared<XNES>(tc, sq, ss, cs, damps, sigma);
+        case StepSizeAdaptation::MXNES:
+            cs = 1.;
+            return std::make_shared<MXNES>(tc, sq, ss, cs, damps, sigma);
+        case StepSizeAdaptation::LPXNES:
+            cs = 9.0 * mueff / (10.0 * sqrt(d));
+            return std::make_shared<LPXNES>(tc, sq, ss, cs, damps, sigma);
+        case StepSizeAdaptation::PSR:
+            cs = .9;
+            return std::make_shared<PSR>(tc, sq, ss, cs, 0., sigma);
+        default:
+        case StepSizeAdaptation::CSA:
+            cs = (mueff + 2.0) / (d + mueff + 5.0);
+            damps = 1.0 + (2.0 * std::max(0.0, sqrt((mueff - 1.0) / (d + 1)) - 1) + cs);
+            return std::make_shared<CSA>(tc, sq, ss, cs, damps, sigma);
+        }
+}
    
 }

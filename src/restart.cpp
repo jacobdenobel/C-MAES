@@ -28,7 +28,7 @@ namespace restart {
 		return v[from + (n / 2)];
 	}
 		
-	void Restart::operator()(parameters::Parameters& p)  {
+	void Restart::evaluate(parameters::Parameters& p)  {
 		
 		flat_fitnesses(p.stats.t % p.dim) = p.pop.f(0) == p.pop.f(flat_fitness_index);
 		median_fitnesses.push_back(median(p.pop.f));
@@ -37,7 +37,6 @@ namespace restart {
 		if (termination_criteria(p)) {
 			restart(p);
 			setup(p.dim, p.strat.lambda, p.stats.t);
-			std::cout << "(mu, lambda, sigma): " << p.strat.mu << ", " << p.strat.lambda << ", " << p.dyn.sigma << std::endl;
 		}
 	}
 
@@ -56,12 +55,14 @@ namespace restart {
 
 		// TODO: the more compilicated criteria
 		if (exeeded_max_iter or no_improvement or flat_fitness or stagnation) {
-			std::cout << "restarting: " << p.stats.t << " (";
-			std::cout << time_since_restart;
-			std::cout << ") flat_fitness: " << flat_fitness;
-			std::cout << " exeeded_max_iter: " << exeeded_max_iter;
-			std::cout << " no_improvement: " << no_improvement;
-			std::cout << " stagnation: " << stagnation << std::endl;
+			if (p.verbose) {
+				std::cout << "restarting: " << p.stats.t << " (";
+				std::cout << time_since_restart;
+				std::cout << ") flat_fitness: " << flat_fitness;
+				std::cout << " exeeded_max_iter: " << exeeded_max_iter;
+				std::cout << " no_improvement: " << no_improvement;
+				std::cout << " stagnation: " << stagnation << std::endl;
+			}
 			return true;
 		}
 			
@@ -109,12 +110,6 @@ namespace restart {
 
 		p.strat.lambda = std::max(size_t{ 2 }, large() ? lambda_large : lambda_small);
 		p.strat.mu = std::max(1.0, p.strat.lambda * mu_factor);
-		p.restart();
-		
-		p.dyn.sigma = large() ? 2. : 2e-2 * dist(rng::GENERATOR);
-		p.mutation_strategy->ss->sample(p.dyn.sigma, p.pop);
-		
-	
-		
+		p.restart(large() ? 2. : 2e-2 * dist(rng::GENERATOR));
 	}
 }
