@@ -1,11 +1,11 @@
 #pragma once
 
-#include "population.hpp"
-#include "sampling.hpp"
 #include "bounds.hpp"
 #include "mutation.hpp"
-#include "selection.hpp"
+#include "population.hpp"
 #include "restart.hpp"
+#include "sampling.hpp"
+#include "selection.hpp"
 
 using size_to = std::optional<size_t>;
 
@@ -18,7 +18,6 @@ namespace parameters
         EQUAL,
         HALF_POWER_LAMBDA
     };
-
 
     struct Modules
     {
@@ -47,22 +46,11 @@ namespace parameters
         double fopt = std::numeric_limits<double>::infinity();
     };
 
-    struct Strategy
-    {
-        size_t lambda;
-        size_t mu;
-
-        std::shared_ptr<bounds::BoundCorrection> bounds;
-    
-        Strategy(const size_t dim, const Modules &mod, const size_to l = std::nullopt, const size_to m = std::nullopt);
-
-    };
-
     struct Weights
     {
-        Vector w;
-        Vector p;
-        Vector n;
+        Vector weights;
+        Vector positive;
+        Vector negative;
 
         double mueff, mueff_neg;
         double c1, cmu, cc;
@@ -90,39 +78,42 @@ namespace parameters
 
         Dynamic(const size_t dim);
 
-        void adapt_evolution_paths(const Weights &w, const std::shared_ptr<mutation::Strategy>& mutation_strategy, const Stats& stats, const Strategy& strat);
+        void adapt_evolution_paths(const Weights &w, const std::shared_ptr<mutation::Strategy> &mutation, const Stats &stats, const size_t lambda);
 
-        void adapt_covariance_matrix(const Weights &w, const Modules &m, const Population &pop, const Strategy &strat);
+        void adapt_covariance_matrix(const Weights &w, const Modules &m, const Population &pop, const size_t mu);
 
         bool perform_eigendecomposition(const Stats &stats);
     };
+        
 
     struct Parameters
     {
         size_t dim;
-        Modules mod;
-        Dynamic dyn;
+        size_t lambda;
+        size_t mu;
+
+        Modules modules;
+        Dynamic dynamic;
         Stats stats;
-        Strategy strat;        
         Weights weights;
 
         Population pop;
         Population old_pop;
 
         std::shared_ptr<sampling::Sampler> sampler;
-        std::shared_ptr<mutation::Strategy> mutation_strategy;
-        std::shared_ptr<selection::Strategy> selection_strategy;
-        std::shared_ptr<restart::Strategy> restart_strategy;
+        std::shared_ptr<mutation::Strategy> mutation;
+        std::shared_ptr<selection::Strategy> selection;
+        std::shared_ptr<restart::Strategy> restart;
+        std::shared_ptr<bounds::BoundCorrection> bounds;
 
-      
         bool verbose = true;
 
         Parameters(const size_t dim);
-        Parameters(const size_t dim, const Modules& m);
+        Parameters(const size_t dim, const Modules &m);
 
         void adapt();
 
-        void restart(const std::optional<double>& sigma = std::nullopt);
+        void perform_restart(const std::optional<double> &sigma = std::nullopt);
     };
 }
 

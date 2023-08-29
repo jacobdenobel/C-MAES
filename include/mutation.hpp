@@ -102,13 +102,13 @@ namespace mutation {
 
         virtual void mutate(std::function<double(Vector)> objective, const size_t n_offspring, parameters::Parameters& p) = 0;
         
-        virtual void adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dyn, Population& pop,
-            const Population& old_pop, const parameters::Stats& stats, const parameters::Strategy& strat) = 0;
+        virtual void adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dynamic, Population& pop,
+            const Population& old_pop, const parameters::Stats& stats, const size_t lambda) = 0;
 
         //! Calls adapt_sigma and then ss->sample(pop);
-        void adapt(const parameters::Weights& w, parameters::Dynamic& dyn, Population& pop,
-            const Population& old_pop, const parameters::Stats& stats, const parameters::Strategy& strat) {
-            adapt_sigma(w, dyn, pop, old_pop, stats, strat);
+        void adapt(const parameters::Weights& w, parameters::Dynamic& dynamic, Population& pop,
+            const Population& old_pop, const parameters::Stats& stats, const size_t lambda) {
+            adapt_sigma(w, dynamic, pop, old_pop, stats, lambda);
             sample_sigma(pop);
         }
 
@@ -128,8 +128,8 @@ namespace mutation {
         
         void mutate(std::function<double(Vector)> objective, const size_t n_offspring, parameters::Parameters& p) override;
 
-        void adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dyn, Population& pop,
-            const Population& old_pop, const parameters::Stats& stats, const parameters::Strategy& strat) override;
+        void adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dynamic, Population& pop,
+            const Population& old_pop, const parameters::Stats& stats, const size_t lambda) override;
         
     };
 
@@ -142,15 +142,15 @@ namespace mutation {
 
         void mutate(std::function<double(Vector)> objective, const size_t n_offspring, parameters::Parameters& p) override;
 
-        void adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dyn, Population& pop,
-            const Population& old_pop, const parameters::Stats& stats, const parameters::Strategy& strat) override;
+        void adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dynamic, Population& pop,
+            const Population& old_pop, const parameters::Stats& stats, const size_t lambda) override;
     };
 
     struct MSR: CSA {
         using CSA::CSA;
 
-        void adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dyn, Population& pop,
-            const Population& old_pop, const parameters::Stats& stats, const parameters::Strategy& strat) override;
+        void adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dynamic, Population& pop,
+            const Population& old_pop, const parameters::Stats& stats, const size_t lambda) override;
     };
 
     struct PSR : CSA {
@@ -158,29 +158,29 @@ namespace mutation {
 
         using CSA::CSA;
 
-        void adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dyn, Population& pop,
-            const Population& old_pop, const parameters::Stats& stats, const parameters::Strategy& strat) override;
+        void adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dynamic, Population& pop,
+            const Population& old_pop, const parameters::Stats& stats, const size_t lambda) override;
     };
 
     struct XNES : CSA {
         using CSA::CSA;
 
-        void adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dyn, Population& pop,
-            const Population& old_pop, const parameters::Stats& stats, const parameters::Strategy& strat) override;
+        void adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dynamic, Population& pop,
+            const Population& old_pop, const parameters::Stats& stats, const size_t lambda) override;
     };
 
     struct MXNES : CSA {
         using CSA::CSA;
 
-        void adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dyn, Population& pop,
-            const Population& old_pop, const parameters::Stats& stats, const parameters::Strategy& strat) override;
+        void adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dynamic, Population& pop,
+            const Population& old_pop, const parameters::Stats& stats, const size_t lambda) override;
     };
 
     struct LPXNES : CSA {
         using CSA::CSA;
 
-        void adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dyn, Population& pop,
-            const Population& old_pop, const parameters::Stats& stats, const parameters::Strategy& strat) override;
+        void adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dynamic, Population& pop,
+            const Population& old_pop, const parameters::Stats& stats, const size_t lambda) override;
     };
 
     std::shared_ptr<Strategy> get(const parameters::Modules& m, const size_t mu,

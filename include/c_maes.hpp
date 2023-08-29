@@ -4,9 +4,9 @@
 
 struct ModularCMAES
 {
-    parameters::Parameters p;
+    std::shared_ptr<parameters::Parameters> p;
 
-    ModularCMAES(const parameters::Parameters &p) : p(p) {}
+    ModularCMAES(const std::shared_ptr<parameters::Parameters> p) : p(p) {}
 
     void recombine();
 
@@ -17,4 +17,3 @@ struct ModularCMAES
     bool break_conditions() const;
 };
 
-void scale_with_threshold(Matrix& z, const double t);

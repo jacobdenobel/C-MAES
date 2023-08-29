@@ -39,12 +39,13 @@ enable_testing()
 
 add_subdirectory(external/IOHexperimenter)
 
-add_executable(integration tests/integration.cpp)
+add_executable(integration tests/integration.cpp) 
 
 target_link_libraries(integration PRIVATE cmaes ioh)
 
-add_executable(x "tests/x.cpp")
-target_link_libraries(x PRIVATE cmaes ioh)
+add_executable(x tests/x.cpp) 
+
+target_link_libraries(x PRIVATE cmaes)
 
 target_precompile_headers(integration 
   PRIVATE 

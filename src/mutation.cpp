@@ -16,28 +16,28 @@ namespace mutation {
         return (f < fopt) and (i >= seq_cutoff) and (m != sampling::Mirror::PAIRWISE or i % 2 == 0);
     }
 
-    void CSA::adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dyn, Population& pop,
-        const Population& old_pop, const parameters::Stats& stats, const parameters::Strategy& strat) {
-        sigma *= std::exp((cs / damps) * ((dyn.ps.norm() / dyn.chiN) - 1));
+    void CSA::adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dynamic, Population& pop,
+        const Population& old_pop, const parameters::Stats& stats, const size_t lambda) {
+        sigma *= std::exp((cs / damps) * ((dynamic.ps.norm() / dynamic.chiN) - 1));
     }
     
     void CSA::mutate(std::function<double(Vector)> objective, const size_t n_offspring, parameters::Parameters& p) {
         for (size_t i = 0; i < n_offspring; ++i)
             p.pop.Z.col(i) = (*p.sampler)();
 
-        p.mutation_strategy->tc->scale(p.pop.Z, p.stats, p.strat.bounds);
+        p.mutation->tc->scale(p.pop.Z, p.stats, p.bounds);
 
-        p.pop.Y = p.dyn.B * (p.dyn.d.asDiagonal() * p.pop.Z);
-        p.pop.X = (p.pop.Y * p.pop.s.asDiagonal()).colwise() + p.dyn.m;
+        p.pop.Y = p.dynamic.B * (p.dynamic.d.asDiagonal() * p.pop.Z);
+        p.pop.X = (p.pop.Y * p.pop.s.asDiagonal()).colwise() + p.dynamic.m;
 
-        p.strat.bounds->correct(p.pop.X, p.pop.Y, p.pop.s, p.dyn.m);
+        p.bounds->correct(p.pop.X, p.pop.Y, p.pop.s, p.dynamic.m);
 
         bool sequential_break_conditions = false;
         for (auto i = 0; i < p.pop.X.cols() and !sequential_break_conditions; ++i)
         {
             p.pop.f(i) = objective(p.pop.X.col(i));
             p.stats.evaluations++;
-            sequential_break_conditions = sq->break_conditions(i, p.pop.f(i), p.stats.fopt, p.mod.mirrored);
+            sequential_break_conditions = sq->break_conditions(i, p.pop.f(i), p.stats.fopt, p.modules.mirrored);
         }
     }
 
@@ -46,14 +46,14 @@ namespace mutation {
 
         CSA::mutate(objective, n_offspring, p);
 
-        p.pop.Y.col(n_offspring) = p.dyn.dm;
-        p.pop.Y.col(n_offspring + 1) = -p.dyn.dm;
+        p.pop.Y.col(n_offspring) = p.dynamic.dm;
+        p.pop.Y.col(n_offspring + 1) = -p.dynamic.dm;
 
         for (auto i = n_offspring; i < n_offspring + 2; i++) {
-            p.pop.X.col(i) = p.dyn.m + (p.pop.s(i) * p.pop.Y.col(i));
+            p.pop.X.col(i) = p.dynamic.m + (p.pop.s(i) * p.pop.Y.col(i));
             
             // TODO: this only needs to happen for a single column
-            p.strat.bounds->correct(p.pop.X, p.pop.Y, p.pop.s, p.dyn.m);
+            p.bounds->correct(p.pop.X, p.pop.Y, p.pop.s, p.dynamic.m);
             
             p.pop.f(i) = objective(p.pop.X.col(i));
             p.stats.evaluations++;
@@ -63,8 +63,8 @@ namespace mutation {
             -a_tpa : a_tpa + b_tpa;
     }
 
-    void TPA::adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dyn, Population& pop,
-        const Population& old_pop, const parameters::Stats& stats, const parameters::Strategy& strat) {
+    void TPA::adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dynamic, Population& pop,
+        const Population& old_pop, const parameters::Stats& stats, const size_t lambda) {
         s = ((1.0 - cs) * s) + (cs * rank_tpa);
         sigma *= std::exp(s);
     }
@@ -77,15 +77,15 @@ namespace mutation {
         return x(x.size() / 2);
     }   
 
-    void MSR::adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dyn, Population& pop,
-        const Population& old_pop, const parameters::Stats& stats, const parameters::Strategy& strat) {
+    void MSR::adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dynamic, Population& pop,
+        const Population& old_pop, const parameters::Stats& stats, const size_t lamb) {
         if (stats.t != 0)
         {
-            const double lambda = static_cast<double>(strat.lambda);
+            const double lambda = static_cast<double>(lamb);
             const double k = (pop.f.array() < median(old_pop.f)).cast<double>().sum();
             const auto z = (2.0 / lambda) * (k - ((lambda + 1.0) / 2.0));
             s = ((1.0 - cs) * s) + (cs * z);
-            sigma *= std::exp(s / (2.0 - (2.0 / dyn.dd)));
+            sigma *= std::exp(s / (2.0 - (2.0 / dynamic.dd)));
         }
     }
 
@@ -101,8 +101,8 @@ namespace mutation {
         return res;
     }
 
-    void PSR::adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dyn, Population& pop,
-        const Population& old_pop, const parameters::Stats& stats, const parameters::Strategy& strat) {
+    void PSR::adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dynamic, Population& pop,
+        const Population& old_pop, const parameters::Stats& stats, const size_t lambda) {
 
         if (stats.t != 0)
         {
@@ -117,26 +117,26 @@ namespace mutation {
             const auto z = (r_old - r).sum() / std::pow(n, 2) - succes_ratio;
 
             s = (1.0 - cs) * s + (cs * z);
-            sigma *= std::exp(s / (2.0 - (2.0 / dyn.dd)));
+            sigma *= std::exp(s / (2.0 - (2.0 / dynamic.dd)));
         }
     }
 
-    void XNES::adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dyn, Population& pop,
-        const Population& old_pop, const parameters::Stats& stats, const parameters::Strategy& strat) {
+    void XNES::adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dynamic, Population& pop,
+        const Population& old_pop, const parameters::Stats& stats, const size_t lambda) {
         
-        const double z = ((dyn.inv_root_C * pop.Y).colwise().norm().array().pow(2.) - dyn.dd).matrix() * w.clipped();
-        sigma *= std::exp((cs / std::sqrt(dyn.dd)) * z);
+        const double z = ((dynamic.inv_root_C * pop.Y).colwise().norm().array().pow(2.) - dynamic.dd).matrix() * w.clipped();
+        sigma *= std::exp((cs / std::sqrt(dynamic.dd)) * z);
     }
-    void MXNES::adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dyn, Population& pop,
-        const Population& old_pop, const parameters::Stats& stats, const parameters::Strategy& strat) {
+    void MXNES::adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dynamic, Population& pop,
+        const Population& old_pop, const parameters::Stats& stats, const size_t lambda) {
         if (stats.t != 0)
         {
-            const auto z = (w.mueff * std::pow((dyn.inv_root_C * dyn.dm).norm(), 2)) - dyn.dd;
-            sigma *= std::exp((cs / dyn.dd) * z);
+            const auto z = (w.mueff * std::pow((dynamic.inv_root_C * dynamic.dm).norm(), 2)) - dynamic.dd;
+            sigma *= std::exp((cs / dynamic.dd) * z);
         }
     }
-    void LPXNES::adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dyn, Population& pop,
-        const Population& old_pop, const parameters::Stats& stats, const parameters::Strategy& strat) {
+    void LPXNES::adapt_sigma(const parameters::Weights& w, parameters::Dynamic& dynamic, Population& pop,
+        const Population& old_pop, const parameters::Stats& stats, const size_t lambda) {
         const auto z = std::exp(cs * pop.s.array().log().matrix().dot(w.clipped()));
         sigma = std::pow(sigma, 1.0 - cs) * z;
     }
@@ -144,13 +144,13 @@ namespace mutation {
 
     std::shared_ptr<Strategy> get(const parameters::Modules& m, const size_t mu, const double mueff, const double d, const double sigma) {
 
-        auto& tc = m.threshold_convergence ? std::make_shared<ThresholdConvergence>()
+        auto tc = m.threshold_convergence ? std::make_shared<ThresholdConvergence>()
             : std::make_shared<NoThresholdConvergence>();
 
-        auto& sq = m.sequential_selection ? std::make_shared<SequentialSelection>(m.mirrored, mu) :
+        auto sq = m.sequential_selection ? std::make_shared<SequentialSelection>(m.mirrored, mu) :
             std::make_shared<NoSequentialSelection>(m.mirrored, mu);
 
-        auto& ss = (m.sample_sigma or m.ssa == StepSizeAdaptation::LPXNES) ?
+        auto ss = (m.sample_sigma or m.ssa == StepSizeAdaptation::LPXNES) ?
             std::make_shared<SigmaSampler>(d)
             : std::make_shared<NoSigmaSampler>(d);
 

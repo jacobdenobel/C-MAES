@@ -80,25 +80,20 @@ namespace sampling
 
     std::vector<int> Halton::sieve(const int n)
     {
-        std::vector<unsigned char> mask(n / 3 + (n % 6 == 2), 1);
-        int s = static_cast<int>(pow(n, .5)) / 3 + 1;
-        for (int i = 1; i < s; ++i)
+       std::vector<int> mask(n + 1, 1);
+                
+        for (int p = 2; p * p <= n; p++)
         {
-            if (mask[i])
-            {
-                auto k = 3 * i + 1 | 1;
-                for (int j = k * k / 3; j < 2 * k - 1; ++j)
-                    mask[j] = 0;
-                for (int j = k * (k - 2 * (i & 1) + 4) / 3; j < 2 * k - 1; ++j)
-                    mask[j] = 0;
-            }
+            if (mask[p])
+                for (int i = p * p; i <= n; i += p)
+                    mask[i] = 0;
         }
-
-        std::vector<int> primes = {2, 3};
-        for (int i = 1; i < static_cast<int>(mask.size()); ++i)
-            if (mask[i])
-                primes.push_back((3 * i + 1) | 1);
-
+        
+        std::vector<int> primes;
+        for (int p = 2; p <= n; p++)
+            if (mask[p])
+                primes.push_back(p);
+                
         return primes;
     }
 
@@ -114,10 +109,10 @@ namespace sampling
     }
 
 
-    std::shared_ptr<Sampler> get(const size_t dim, const parameters::Modules& mod, const parameters::Strategy& strat)
+    std::shared_ptr<Sampler> get(const size_t dim, const parameters::Modules& modules, const size_t lambda)
     {
         std::shared_ptr<Sampler> sampler;
-        switch (mod.sampler)
+        switch (modules.sampler)
         {
         case BaseSampler::GAUSSIAN:
             sampler = std::make_shared<Gaussian>(dim);
@@ -133,11 +128,11 @@ namespace sampling
             break;
         };
 
-        auto not_mirrored = mod.mirrored == Mirror::NONE;
-        if (mod.orthogonal)
+        auto not_mirrored = modules.mirrored == Mirror::NONE;
+        if (modules.orthogonal)
         {
-            auto has_tpa = mod.ssa == mutation::StepSizeAdaptation::TPA;
-            auto n_samples = std::max(1, (static_cast<int>(strat.lambda) / (2 - not_mirrored)) - (2 * has_tpa));
+            auto has_tpa = modules.ssa == mutation::StepSizeAdaptation::TPA;
+            auto n_samples = std::max(1, (static_cast<int>(lambda) / (2 - not_mirrored)) - (2 * has_tpa));
             sampler = std::make_shared<Orthogonal>(sampler, n_samples);
         }
         if (not not_mirrored)

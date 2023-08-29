@@ -4,7 +4,6 @@
 
 namespace parameters {
 	struct Parameters;
-
 }
 
 namespace restart {

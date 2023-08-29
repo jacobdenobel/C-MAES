@@ -6,3 +6,9 @@ a.out
 test.cpp
 external
 
+*.egg-info
+*so
+*pyc
+__pycache__/
+
+data

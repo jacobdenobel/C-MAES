@@ -43,7 +43,7 @@ namespace bounds {
 	struct COTN : BoundCorrection {
 		sampling::Gaussian sampler;
 
-		COTN(const size_t dim): BoundCorrection(dim), sampler(dim, std::normal_distribution<double>(0, 1.0 / 3)) {}
+		COTN(const size_t dim): BoundCorrection(dim), sampler(dim, rng::normal<double>(0, 1.0 / 3.)) {}
 
 		void correct(Matrix& X, Matrix& Y, const Vector& s, const Vector& m) override {
 			n_out_of_bounds = 0;

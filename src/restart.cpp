@@ -36,7 +36,7 @@ namespace restart {
 
 		if (termination_criteria(p)) {
 			restart(p);
-			setup(p.dim, p.strat.lambda, p.stats.t);
+			setup(p.dim, p.lambda, p.stats.t);
 		}
 	}
 
@@ -70,16 +70,16 @@ namespace restart {
 	}
 	
 	void Restart::restart(parameters::Parameters& p) {
-		p.restart(); 
+		p.perform_restart(); 
 	}
 
 	void IPOP::restart(parameters::Parameters& p) {
 		//max_lambda_ = (self.d * self.lambda_) * *2
-		if (p.strat.mu < 512) {
-			p.strat.mu *= ipop_factor;
-			p.strat.lambda *= ipop_factor;
+		if (p.mu < 512) {
+			p.mu *= ipop_factor;
+			p.lambda *= ipop_factor;
 		}		
-		p.restart();
+		p.perform_restart();
 	}
 	void BIPOP::restart(parameters::Parameters& p) {
 		static std::uniform_real_distribution<> dist;
@@ -108,8 +108,8 @@ namespace restart {
 		if (lambda_small % 2 != 0)
 			lambda_small++;
 
-		p.strat.lambda = std::max(size_t{ 2 }, large() ? lambda_large : lambda_small);
-		p.strat.mu = std::max(1.0, p.strat.lambda * mu_factor);
-		p.restart(large() ? 2. : 2e-2 * dist(rng::GENERATOR));
+		p.lambda = std::max(size_t{ 2 }, large() ? lambda_large : lambda_small);
+		p.mu = std::max(1.0, p.lambda * mu_factor);
+		p.perform_restart(large() ? 2. : 2e-2 * dist(rng::GENERATOR));
 	}
 }

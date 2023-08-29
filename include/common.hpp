@@ -7,8 +7,8 @@
 #include <vector>
 
 #include <algorithm>
-#include <numeric>
 #include <ciso646>
+#include <numeric>
 #include <optional>
 
 #define _USE_MATH_DEFINES
@@ -61,6 +61,15 @@ namespace utils
      * @param y source vector
      */
     void concat(Vector &x, const Vector &y);
+
+    /**
+     * @brief Compute the expected running time (ERT) of a set of runs
+     * 
+     * @param running_times the vector of measured running times
+     * @param budget the maximum budget allocated to each run
+     * @return std::pair<double, size_t> (ERT, number of successfull runs)
+     */
+    std::pair<double, size_t> compute_ert(const std::vector<size_t> &running_times, const size_t budget);
 }
 
 namespace rng
@@ -85,4 +94,81 @@ namespace rng
      * @return int a random integer
      */
     int random_integer(int l, int h);
+
+    /**
+     * @brief distribution which in compbination with mt19997 produces the same
+     * random numbers for gcc and msvc
+     */
+    template <typename T = double>
+    struct uniform
+    {
+        /**
+         * @brief Generate a random uniform number in the closed interval [-1, 1]
+         *
+         * @tparam G the type of the generator
+         * @param gen the generator instance
+         * @return T the random number
+         */
+        template <typename G>
+        T operator()(G &gen)
+        {
+            return static_cast<T>(2.0 * gen() - gen.min()) / gen.max() - gen.min() - 1;
+        }
+    };
+
+    /**
+     * @brief Box-Muller random normal number generator. Ensures similar numbers generated
+     * on different operating systems. Polar form is used here.
+     */
+    template <typename T = double>
+    struct normal
+    {
+        T mu;
+        T sigma;
+        
+        normal(const T mu, const T sigma): mu(mu), sigma(sigma) {}
+        normal(): normal(0.0, 1.0) {}
+
+        /**
+         * @brief Generate a standard normal random number with mean 0 and std dev 1.
+         *
+         * @tparam G the type of the generator
+         * @param gen the generator instance
+         * @return T the random number
+         */
+        template <typename G>
+        T operator()(G &gen)
+        {
+            static uniform<double> rng;
+            static T r1, r2;
+            static bool generate = true;
+
+            if (generate)
+            {
+                T u1 = 0.0, u2 = 0.0, s = 1.0;
+                do
+                {
+                    u1 = rng(gen);
+                    u2 = rng(gen);
+                    s = pow(u1, 2.) + pow(u2, 2.);
+                } while (s >= 1.0);
+
+                const T root_2log_s = std::sqrt((-2.0 * std::log(s)) / s);
+                r1 = (sigma * (u1 * root_2log_s)) + mu;
+                r2 = (sigma * (u2 * root_2log_s)) + mu;
+                generate = false;
+                return r1;
+            }
+            else
+            {
+                generate = true;
+                return r2;
+            }
+        }
+    };
+}
+
+namespace functions
+{
+    double sphere(const Vector &x);
 }

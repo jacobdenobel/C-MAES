@@ -4,7 +4,7 @@ namespace parameters
 {
 
     Weights::Weights(const size_t dim, const size_t mu, const size_t lambda, const Modules &m)
-        : w(lambda), p(mu), n(lambda - mu)
+        : weights(lambda), positive(mu), negative(lambda - mu)
     {
         const double d = static_cast<double>(dim);
         using namespace mutation;
@@ -21,9 +21,9 @@ namespace parameters
             break;
         }
 
-        mueff = std::pow(p.sum(), 2) / p.dot(p);
-        mueff_neg = std::pow(n.sum(), 2) / n.dot(n);
-        p /= p.sum();
+        mueff = std::pow(positive.sum(), 2) / positive.dot(positive);
+        mueff_neg = std::pow(negative.sum(), 2) / negative.dot(negative);
+        positive /= positive.sum();
 
         c1 = 2.0 / (pow(d + 1.3, 2) + mueff);
         cmu = std::min(1.0 - c1, 2.0 * ((mueff - 2.0 + (1.0 / mueff)) / (pow(d + 2.0, 2) + (2.0 * mueff / 2))));
@@ -35,25 +35,25 @@ namespace parameters
         const double aposdef_neg = (1.0 - c1 - cmu) / (d * cmu);
 
         const double neg_scaler = std::min(amu_neg, std::min(amueff_neg, aposdef_neg));
-        n *= neg_scaler / n.cwiseAbs().sum();
-        w << p, n;
+        negative *= neg_scaler / negative.cwiseAbs().sum();
+        weights << positive, negative;
     }
 
     void Weights::weights_default(const size_t lambda)
     {
         const double base = std::log((static_cast<double>(lambda) + 1.) / 2.0);
-        for (auto i = 0; i < p.size(); ++i)
-            p(i) = base - std::log(static_cast<double>(i + 1));
+        for (auto i = 0; i < positive.size(); ++i)
+            positive(i) = base - std::log(static_cast<double>(i + 1));
 
-        for (auto i = 0; i < n.size(); ++i)
-            n(i) = base - std::log(static_cast<double>(i + 1 + p.size()));
+        for (auto i = 0; i < negative.size(); ++i)
+            negative(i) = base - std::log(static_cast<double>(i + 1 + positive.size()));
     }
 
     void Weights::weights_equal(const size_t mu)
     {
         const double wi = 1. / static_cast<double>(mu);
-        p.setConstant(wi);
-        n.setConstant(-wi);
+        positive.setConstant(wi);
+        negative.setConstant(-wi);
     }
 
     void Weights::weights_half_power_lambda(const size_t mu, const size_t lambda)
@@ -63,16 +63,16 @@ namespace parameters
         const double delta = static_cast<double>(lambda - mu);
         const double base2 = (1.0 / pow(2.0, delta)) / delta;
 
-        for (auto i = 0; i < p.size(); ++i)
-            p(i) = dmu / pow(2.0, static_cast<double>(i + 1)) + base;
+        for (auto i = 0; i < positive.size(); ++i)
+            positive(i) = dmu / pow(2.0, static_cast<double>(i + 1)) + base;
 
-        for (auto i = 0; i < n.size(); ++i)
-            n(n.size() - i) = 1.0 / pow(2.0, static_cast<double>(i + 1)) + base2;
+        for (auto i = 0; i < negative.size(); ++i)
+            negative(negative.size() - i) = 1.0 / pow(2.0, static_cast<double>(i + 1)) + base2;
     }
 
 
     Vector Weights::clipped() const {
-        return (w.array() > 0).select(w, Vector::Zero(w.size()));
+        return (weights.array() > 0).select(weights, Vector::Zero(weights.size()));
     }
 
 }

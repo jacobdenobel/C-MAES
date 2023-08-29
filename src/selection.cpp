@@ -3,11 +3,11 @@
 
 
 namespace selection {
-	Strategy::Strategy(const parameters::Modules& mod) : 
-		pairwise(mod.mirrored == sampling::Mirror::PAIRWISE ? 
+	Strategy::Strategy(const parameters::Modules& modules) : 
+		pairwise(modules.mirrored == sampling::Mirror::PAIRWISE ? 
 			std::make_shared<Pairwise>() : 
 			std::make_shared<NoPairwise>()),
-		elitsm(mod.elitist ? 
+		elitsm(modules.elitist ? 
 			std::make_shared<Elitsm>(): 
 			std::make_shared<NoElitsm>())
 	{}
@@ -18,7 +18,7 @@ namespace selection {
 		(*elitsm)(p);		
 		
 		p.pop.sort();
-		p.pop.resize_cols(p.strat.lambda);
+		p.pop.resize_cols(p.lambda);
 
 		if (p.pop.f(0) < p.stats.fopt)
 		{
