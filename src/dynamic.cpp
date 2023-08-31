@@ -58,15 +58,18 @@ namespace parameters
                       << eigensolver.info() << std::endl;
             return false;
         }
-
-        d = eigensolver.eigenvalues().cwiseSqrt();
+        d = eigensolver.eigenvalues();
+        if (d.minCoeff() < 0.0) 
+            return false;
+        
+        d = d.cwiseSqrt();
         B = eigensolver.eigenvectors();
 
         // TODO: Check how to adress this, sometimes the covariance matrix degenerates
-        static double eps = 1e-24;
-        d = d.unaryExpr([eps=eps](double v)
-                        { return std::isfinite(v) ? std::max(v, eps) : eps; });
-        C = B * d.cwiseProduct(d).asDiagonal() * B.transpose();
+        // static double eps = 1e-24;
+        // d = d.unaryExpr([eps=eps](double v)
+        //                 { return std::isfinite(v) ? std::max(v, eps) : eps; });
+        // C = B * d.cwiseProduct(d).asDiagonal() * B.transpose();
 
         inv_root_C = (B * d.cwiseInverse().asDiagonal()) * B.transpose();
         return true;

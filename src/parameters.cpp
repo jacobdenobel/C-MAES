@@ -15,7 +15,7 @@ namespace parameters
         mutation(mutation::get(modules,           
             mu, weights.mueff,
             static_cast<double>(dim),
-            .5 // sigma
+            2.0 // sigma
         )),
         selection(std::make_shared<selection::Strategy>(modules)),
         restart(restart::get(modules.restart_strategy, 
@@ -57,7 +57,7 @@ namespace parameters
         dynamic.C = Matrix::Identity(dim, dim);
         dynamic.inv_root_C = Matrix::Identity(dim, dim);
         dynamic.d.setOnes();
-        dynamic.m = Vector::Random(dim) * 5;
+        dynamic.m.setZero(); // = Vector::Random(dim) * 5;
         dynamic.m_old.setZero();
         dynamic.dm.setZero();
         dynamic.pc.setZero();
@@ -74,6 +74,11 @@ namespace parameters
         
         if (!dynamic.perform_eigendecomposition(stats))
             perform_restart();
+        
+        if (1e-8 > mutation->sigma or mutation->sigma > 10){
+            std::cout << "sigma " << mutation->sigma << " restarting\n";
+            perform_restart();
+        }            
         
         old_pop = pop;
         restart->evaluate(*this);

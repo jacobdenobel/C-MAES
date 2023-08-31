@@ -20,19 +20,19 @@ Iteration = namedtuple(
 )
 
 
-def eval_modcma(fid, dim = 5, runs = 25, budget = 10_000, **kwargs):
-    problem = ioh.get_problem(fid, 1, dim)
+def eval_modcma(args, **kwargs):
+    problem = ioh.get_problem(args.fid, 1, args.dim)
     
     start = perf_counter()
-    running_times = np.zeros(runs)
-    dy = np.zeros(runs)
+    running_times = np.zeros(args.runs)
+    dy = np.zeros(args.runs)
     all_data = []
-    for run in range(runs):
+    for run in range(args.runs):
         opt = ModularCMAES(
             problem,
-            dim,
-            budget=budget,
-            x0=np.zeros(dim).reshape(-1, 1),
+            args.dim,
+            budget=args.budget,
+            x0=np.zeros(args.dim).reshape(-1, 1),
             target=problem.optimum.y + 1e-8,
             **kwargs
         )
@@ -53,16 +53,16 @@ def eval_modcma(fid, dim = 5, runs = 25, budget = 10_000, **kwargs):
         running_times.astype(int), opt.parameters.budget
     )
     print(f"FCE:\t{np.mean(dy)}\t {np.std(dy)}")
-    print(f"ERT:\t{ert}\t {np.std(runs)}")
-    print(f"{n_succes}/{runs} runs reached target")
+    print(f"ERT:\t{ert}\t {np.std(args.runs)}")
+    print(f"{n_succes}/{args.runs} runs reached target")
     print("Time elapsed", perf_counter() - start)
     modules = {k: getattr(opt.parameters, k) for k in opt.parameters.__modules__}
     return all_data, modules
 
-
-def evaluate(problem, runs, plot=False):
+def evaluate(problem, args):
     fid = problem.meta_data.problem_id
     dim = problem.meta_data.n_variables
+    runs = args.runs
     target = 1e-8
 
     print(
@@ -74,16 +74,17 @@ def evaluate(problem, runs, plot=False):
 
     all_data = []
     for run in range(runs):
+        
         modules = cma.parameters.Modules()
         modules.elitist = False
         modules.active = False
         modules.orthogonal = False
         modules.sequential_selection = False
         modules.threshold_convergence = False
-        modules.sample_sigma = True
+        modules.sample_sigma = False
         modules.weights = cma.options.RecombinationWeights.DEFAULT
         modules.mirrored = cma.options.Mirror.NONE
-        modules.ssa = cma.options.CSA
+        modules.ssa = cma.options.TPA
         modules.bound_correction = cma.options.CorrectionMethod.NONE
         modules.restart_strategy = cma.options.RestartStrategy.NONE
 
@@ -91,12 +92,13 @@ def evaluate(problem, runs, plot=False):
         parameters = cma.Parameters(dim, modules)
         parameters.verbose = args.verbose
         parameters.stats.target = problem.optimum.y + target
-        parameters.stats.budget = 10_000
+        parameters.stats.budget = args.budget
+
         parameters.mutation.sigma = 2.0
         parameters.mutation.sigma0 = 2.0
         parameters.mutation.sample_sigma(parameters.pop)
-
         parameters.dynamic.m = np.zeros(5)
+        
         optimizer = cma.ModularCMAES(parameters)
         
         run_data = []
@@ -113,7 +115,6 @@ def evaluate(problem, runs, plot=False):
                 parameters.dynamic.inv_root_C.copy(),
                 parameters.stats.fopt
             ))
-            # breakpoint()
         all_data.append(run_data)
 
         running_times[run] = problem.state.evaluations
@@ -128,15 +129,14 @@ def evaluate(problem, runs, plot=False):
     print(f"{n_succes}/{runs} runs reached target")
     print("Time elapsed", perf_counter() - start)
 
-    if plot:
+    if args.plot:
         plot_modcma(fid, show=False)
         plot_data(all_data, fid, f"c_maes default f{fid}")
 
-
-def collect_modcma(fid, **kwargs):
-    data, modules = eval_modcma(fid, **kwargs)
+def collect_modcma(args, **kwargs):
+    data, modules = eval_modcma(args, **kwargs)
     module_string = "_".join(f"{k}_{v}" for k,v in modules.items())
-    filename = os.path.join(DATA, str(fid), f"{module_string}.pkl")
+    filename = os.path.join(DATA, str(args.fid), f"{module_string}.pkl")
     with open(filename, "wb") as f:
         pickle.dump(data, f)
     print("saved data at", filename)
@@ -157,7 +157,6 @@ def plot_modcma(fid, **kwargs):
         data = pickle.load(f)
 
     plot_data(data, fid, f"modcma default f{fid}", **kwargs)
-
 
 def plot_data(data, fid, title, log=True, show=True):
     problem = ioh.get_problem(fid, 1, 5)
@@ -210,18 +209,19 @@ def plot_data(data, fid, title, log=True, show=True):
         pass
 
     axes[0].set_yscale("log")
+    # axes[0].set_xscale("log")
     axes[1].set_yscale("log")
     axes[3].set_yscale("log")
     axes[4].set_yscale("log")
 
     for ax in axes:
         ax.grid()
+        ax.set_xscale("log")
         ax.set_xlabel("time")
         
     plt.tight_layout()
     if show:
         plt.show()    
-
 
 
 if __name__ == "__main__":
@@ -231,23 +231,25 @@ if __name__ == "__main__":
     parser.add_argument("--iid", default=1, type=int)
     parser.add_argument("--runs", default=25, type=int)
     parser.add_argument("--seed", default=10, type=int)
+    parser.add_argument("--budget", default=50_000, type=int)
     parser.add_argument("--full-bbob", action="store_true", default=False)
     parser.add_argument("--logged", action="store_true", default=False)
     parser.add_argument("--verbose", action="store_true", default=False)
     parser.add_argument("--collect-modcma", action="store_true", default=False)
-    parser.add_argument("--plot-modcma", action="store_true", default=False)
+    parser.add_argument("--plot", action="store_true", default=False)
     args = parser.parse_args()
 
     cma.utils.set_seed(args.seed)
     np.random.seed(args.seed)
 
     if args.collect_modcma:
-        collect_modcma(args.fid, runs=args.runs)
-    elif args.plot_modcma:
-        plot_modcma(args.fid)
+        collect_modcma(args)
     else:
         if args.logged:
-            logger = ioh.logger.Analyzer(algorithm_name="C++CMAES")
+            logger = ioh.logger.Analyzer(
+                root="data",
+                algorithm_name="C++CMAES"
+            )
 
         if args.full_bbob:
             problems = [
@@ -259,5 +261,4 @@ if __name__ == "__main__":
         for problem in problems:
             if args.logged:
                 problem.attach_logger(logger)
-
-            evaluate(problem, args.runs)
+            evaluate(problem, args)
